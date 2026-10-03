@@ -30,18 +30,13 @@
 
         body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        header { 
-            background-color: var(--card-bg); 
-            padding: 16px 20px; 
-            font-size: 20px; 
-            font-weight: 700; 
-            border-bottom: 1px solid var(--line-color); 
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        /* Security Screen */
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+        #app-container { display: none; flex-direction: column; height: 100%; width: 100%; }
 
-        #theme-toggle { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-main); }
+        header { background-color: var(--card-bg); padding: 16px 20px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--line-color); display: flex; justify-content: space-between; align-items: center; }
+        
+        .header-actions button { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-main); margin-left: 15px; }
 
         main { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
 
@@ -63,11 +58,22 @@
         .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .day-header { margin-top: 20px; margin-bottom: 15px; font-size: 18px; color: var(--primary); font-weight: bold; border-bottom: 2px solid var(--line-color); padding-bottom: 5px; }
+        /* Timetable UI */
+        .view-toggles { display: none; gap: 10px; margin-bottom: 20px; }
+        .toggle-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; cursor: pointer; text-align: center; }
+        .toggle-btn.active-toggle { background: var(--primary); color: white; }
+
+        .day-header { margin-top: 10px; margin-bottom: 15px; font-size: 18px; color: var(--primary); font-weight: bold; border-bottom: 2px solid var(--line-color); padding-bottom: 5px; }
         .timetable { position: relative; padding-left: 20px; margin-bottom: 30px; }
         .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 27px; width: 2px; background-color: var(--line-color); }
         .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
         .class-slot::before { content: ''; position: absolute; left: 3px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--primary); border: 3px solid var(--bg); z-index: 1; }
+        
+        /* Free Period styling */
+        .class-slot.free-period .info-col { background: transparent; border: 2px dashed var(--line-color); box-shadow: none; display: flex; align-items: center; padding: 12px 16px;}
+        .class-slot.free-period::before { background-color: var(--line-color); }
+        .class-slot.free-period .subject { color: var(--text-muted); font-weight: 500; font-style: italic; }
+
         .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
         .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
         .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
@@ -83,7 +89,6 @@
         .hw-actions { display: flex; gap: 10px; margin-top: 10px; }
         .btn-complete { background: var(--success); flex: 1; padding: 10px; border-radius: 6px; color: white; border: none; font-weight: bold; cursor: pointer; }
         
-        /* History Styles */
         .history-header { margin-top: 30px; font-size: 18px; color: var(--text-muted); border-bottom: 1px solid var(--line-color); padding-bottom: 5px; margin-bottom: 15px; }
         .hw-card.completed { opacity: 0.7; border-color: var(--success); }
         .hw-card.completed .btn-complete { display: none; }
@@ -92,93 +97,137 @@
 </head>
 <body>
 
-    <header>
-        <span id="app-header-title">Dashboard</span>
-        <button id="theme-toggle">🌙</button>
-    </header>
-
-    <main>
-        <!-- DASHBOARD TAB -->
-        <div id="tab-dashboard" class="tab-content active">
-            <div id="homework-list"></div>
-            <div id="history-section" style="display: none;">
-                <h2 class="history-header">History</h2>
-                <div id="history-list"></div>
-            </div>
+    <!-- SECURITY OVERLAY -->
+    <div id="auth-screen">
+        <div id="auth-message" style="font-size: 18px; font-weight: 600;">Verifying Access...</div>
+        <div id="auth-prompt" class="box" style="display: none; width: 100%; max-width: 350px;">
+            <h2 style="margin-bottom: 5px;">App Locked</h2>
+            <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 14px;">Enter PIN to continue</p>
+            <input type="password" id="app-pin-input" placeholder="Enter PIN">
+            <p id="auth-error" style="color: #ef4444; margin-bottom: 10px; font-size: 14px; display: none;">Incorrect PIN</p>
+            <button class="btn" onclick="checkAppPin()">Unlock</button>
         </div>
+    </div>
 
-        <!-- ADD HOMEWORK TAB -->
-        <div id="tab-add" class="tab-content">
-            <div class="box">
-                <p id="context-msg" style="color: var(--primary); font-weight: 600; margin-bottom: 15px;">Detecting class...</p>
-                
-                <form id="addHwForm">
-                    <select id="hw-subject" required>
-                        <option value="">Select Subject...</option>
-                    </select>
-
-                    <div id="due-date-preview" style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; font-weight: 500;">
-                        Due: Select a subject first
-                    </div>
-                    
-                    <textarea id="hw-desc" placeholder="What's the homework?" rows="3" required></textarea>
-                    
-                    <label style="display: block; margin-bottom: 5px; font-size: 14px; color: var(--text-muted);">Attach Photo (Optional)</label>
-                    <input type="file" id="hw-image" accept="image/*">
-                    
-                    <button type="submit" class="btn" style="margin-top: 10px;">Save Homework</button>
-                </form>
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container">
+        <header>
+            <span id="app-header-title">Dashboard</span>
+            <div class="header-actions">
+                <button onclick="clearAllData()" title="Clear Data">🗑️</button>
+                <button id="theme-toggle">🌙</button>
             </div>
-        </div>
+        </header>
 
-        <!-- TIMETABLE TAB -->
-        <div id="tab-timetable" class="tab-content">
-            <div id="form-section" class="box">
-                <h2 style="margin-bottom: 15px;">Sync Arbor</h2>
-                <form id="loginForm">
-                    <input type="email" id="email" placeholder="Arbor Email" required>
-                    <input type="password" id="password" placeholder="Arbor Password" required>
-                    <button type="submit" class="btn">Download Timetable</button>
-                </form>
+        <main>
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="tab-content active">
+                <div id="homework-list"></div>
+                <div id="history-section" style="display: none;">
+                    <h2 class="history-header">History</h2>
+                    <div id="history-list"></div>
+                </div>
             </div>
 
-            <div id="loading">
-                <div class="spinner"></div>
-                <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
+            <!-- ADD HOMEWORK TAB -->
+            <div id="tab-add" class="tab-content">
+                <div class="box">
+                    <p id="context-msg" style="color: var(--primary); font-weight: 600; margin-bottom: 15px;">Detecting class...</p>
+                    <form id="addHwForm">
+                        <select id="hw-subject" required>
+                            <option value="">Select Subject...</option>
+                        </select>
+                        <div id="due-date-preview" style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; font-weight: 500;">
+                            Due: Select a subject first
+                        </div>
+                        <textarea id="hw-desc" placeholder="What's the homework?" rows="3" required></textarea>
+                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: var(--text-muted);">Attach Photo (Optional)</label>
+                        <input type="file" id="hw-image" accept="image/*">
+                        <button type="submit" class="btn" style="margin-top: 10px;">Save Homework</button>
+                    </form>
+                </div>
             </div>
 
-            <div id="timetable-list"></div>
-        </div>
-    </main>
+            <!-- TIMETABLE TAB -->
+            <div id="tab-timetable" class="tab-content">
+                <div id="form-section" class="box">
+                    <h2 style="margin-bottom: 15px;">Sync Arbor</h2>
+                    <form id="loginForm">
+                        <input type="email" id="email" placeholder="Arbor Email" required>
+                        <input type="password" id="password" placeholder="Arbor Password" required>
+                        <button type="submit" class="btn">Download Timetable</button>
+                    </form>
+                </div>
 
-    <nav>
-        <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')">
-            <div class="nav-icon"></div>Tasks
-        </button>
-        <button class="nav-item" onclick="switchTab('add', 'Add Homework')">
-            <div class="nav-icon"></div>Add
-        </button>
-        <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')">
-            <div class="nav-icon"></div>Timetable
-        </button>
-    </nav>
+                <div id="loading">
+                    <div class="spinner"></div>
+                    <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
+                </div>
+
+                <div id="timetable-controls" class="view-toggles">
+                    <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
+                    <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Full Week</button>
+                </div>
+
+                <div id="timetable-list"></div>
+            </div>
+        </main>
+
+        <nav>
+            <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')">
+                <div class="nav-icon"></div>Tasks
+            </button>
+            <button class="nav-item" onclick="switchTab('add', 'Add Homework')">
+                <div class="nav-icon"></div>Add
+            </button>
+            <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')">
+                <div class="nav-icon"></div>Timetable
+            </button>
+        </nav>
+    </div>
 
     <script>
-        // --- PREVENT AUTO-DELETION OF DATA BY THE OS ---
-        if (navigator.storage && navigator.storage.persist) {
-            navigator.storage.persist().then(granted => {
-                if (granted) console.log("Storage is permanently locked and protected.");
-            });
+        // --- SECURITY ---
+        function checkAccess() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (isStandalone) {
+                document.getElementById('auth-message').style.display = 'none';
+                document.getElementById('auth-prompt').style.display = 'block';
+            } else {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('pin') === '5566') unlockApp();
+                else {
+                    const msg = document.getElementById('auth-message');
+                    msg.innerText = "Access Denied.";
+                    msg.style.color = "#ef4444";
+                }
+            }
+        }
+        function checkAppPin() {
+            if (document.getElementById('app-pin-input').value === '7788') unlockApp();
+            else document.getElementById('auth-error').style.display = 'block';
+        }
+        function unlockApp() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+        }
+        checkAccess();
+
+        // --- GLOBAL CLEAR DATA ---
+        function clearAllData() {
+            if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again.")) {
+                localStorage.clear();
+                const req = indexedDB.deleteDatabase("AutoPlannerDB");
+                req.onsuccess = () => location.reload();
+            }
         }
 
-        // --- DARK MODE LOGIC ---
+        // --- DARK MODE ---
         const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
+        if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-mode');
             themeToggle.innerText = '☀️';
         }
-
         themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
             if (document.body.classList.contains('dark-mode')) {
@@ -190,21 +239,16 @@
             }
         });
 
-        // --- OFFLINE DATABASE SETUP (IndexedDB) ---
+        // --- INDEXED DB ---
         let db;
-        const request = indexedDB.open("AutoPlannerDB", 2); // Increased version for new structure
+        const request = indexedDB.open("AutoPlannerDB", 2); 
         request.onupgradeneeded = (e) => {
             db = e.target.result;
-            if (!db.objectStoreNames.contains("homework")) {
-                db.createObjectStore("homework", { keyPath: "id" });
-            }
+            if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" });
         };
-        request.onsuccess = (e) => { 
-            db = e.target.result; 
-            renderHomework(); 
-        };
+        request.onsuccess = (e) => { db = e.target.result; renderHomework(); };
 
-        // --- TAB SWITCHING ---
+        // --- TABS ---
         function switchTab(tabId, headerTitle) {
             document.getElementById('app-header-title').innerText = headerTitle;
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -214,17 +258,29 @@
 
             if(tabId === 'add') populateAddForm();
             if(tabId === 'dashboard') renderHomework();
+            if(tabId === 'timetable') renderTimetable('today');
         }
 
-        // --- TIMETABLE RENDERER ---
-// --- TIMETABLE RENDERER (Filters, Frees & Staff) ---
+        // --- TIME UTILS ---
+        const parseTime = (timeStr) => {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const formatTime = (mins) => {
+            const h = Math.floor(mins / 60).toString().padStart(2, '0');
+            const m = (mins % 60).toString().padStart(2, '0');
+            return `${h}:${m}`;
+        };
+
+        // --- TIMETABLE RENDERER (Filters, Frees & Staff) ---
         function renderTimetable(viewType = 'today') {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const list = document.getElementById('timetable-list');
             list.innerHTML = '';
 
-            document.getElementById('btn-view-today').classList.toggle('active-toggle', viewType === 'today');
-            document.getElementById('btn-view-week').classList.toggle('active-toggle', viewType === 'week');
+            // Optional chaining to prevent the null error if buttons are missing
+            document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
+            document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
 
             if (schedule.length === 0) {
                 document.getElementById('form-section').style.display = 'block';
@@ -333,7 +389,6 @@
                 list.appendChild(dayTimeline);
             });
         }
-        renderTimetable();
 
         // --- ARBOR SCRAPER ---
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -355,7 +410,7 @@
 
                 if (data.success) {
                     localStorage.setItem('schedule', JSON.stringify(data.data));
-                    renderTimetable();
+                    renderTimetable('today');
                 } else {
                     alert("Error: " + data.error);
                     document.getElementById('form-section').style.display = 'block';
@@ -367,21 +422,14 @@
             }
         });
 
-        // --- "RIGHT NOW" MATH & ADD FORM ---
-        function parseTime(timeStr) {
-            const parts = timeStr.split(':');
-            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-        }
-
+        // --- AUTO ADD FORM LOGIC ---
         function populateAddForm() {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const select = document.getElementById('hw-subject');
             select.innerHTML = '<option value="">Select Subject...</option>';
             
             const subjects = [...new Set(schedule.flatMap(d => d.classes.map(c => c.rawText)))];
-            subjects.forEach(sub => {
-                select.innerHTML += `<option value="${sub}">${sub}</option>`;
-            });
+            subjects.forEach(sub => select.innerHTML += `<option value="${sub}">${sub}</option>`);
 
             const now = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -415,8 +463,7 @@
         }
 
         document.getElementById('hw-subject').addEventListener('change', (e) => {
-            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-            calculateNextLesson(e.target.value, schedule);
+            calculateNextLesson(e.target.value, JSON.parse(localStorage.getItem('schedule') || '[]'));
         });
 
         function calculateNextLesson(subject, schedule) {
@@ -440,7 +487,7 @@
             document.getElementById('due-date-preview').dataset.due = nextDate;
         }
 
-        // --- SAVE HOMEWORK ---
+        // --- SAVE HW ---
         document.getElementById('addHwForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const file = document.getElementById('hw-image').files[0];
@@ -449,34 +496,27 @@
                 subject: document.getElementById('hw-subject').value,
                 desc: document.getElementById('hw-desc').value,
                 due: document.getElementById('due-date-preview').dataset.due || 'Next Lesson',
-                status: 'active', // Adding active status instead of deleting later
+                status: 'active',
                 image: null
             };
 
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(evt) {
-                    task.image = evt.target.result;
-                    saveTaskToDB(task);
-                };
+                reader.onload = function(evt) { task.image = evt.target.result; saveTaskToDB(task); };
                 reader.readAsDataURL(file);
-            } else {
-                saveTaskToDB(task);
-            }
+            } else saveTaskToDB(task);
         });
 
         function saveTaskToDB(task) {
             const tx = db.transaction("homework", "readwrite");
-            tx.objectStore("homework").put(task); // use put so it can add OR update
+            tx.objectStore("homework").put(task); 
             tx.oncomplete = () => {
                 document.getElementById('addHwForm').reset();
-                document.getElementById('hw-subject').value = "";
-                document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
                 switchTab('dashboard', 'Dashboard');
             };
         }
 
-        // --- RENDER DASHBOARD (WITH HISTORY SYSTEM) ---
+        // --- DASHBOARD & HISTORY ---
         function renderHomework() {
             if (!db) return;
             const list = document.getElementById('homework-list');
@@ -488,20 +528,13 @@
             historySection.style.display = 'none';
             
             const tx = db.transaction("homework", "readonly");
-            const request = tx.objectStore("homework").getAll();
-            
-            request.onsuccess = e => {
+            tx.objectStore("homework").getAll().onsuccess = e => {
                 const tasks = e.target.result;
-                
-                // Filter active vs completed
                 const activeTasks = tasks.filter(t => t.status !== 'completed').sort((a,b) => b.id - a.id);
                 const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
-                if (activeTasks.length === 0) {
-                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 20px;">No pending homework. You are all caught up!</p>';
-                } else {
-                    activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
-                }
+                if (activeTasks.length === 0) list.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 20px;">No pending homework. You are all caught up!</p>';
+                else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
 
                 if (completedTasks.length > 0) {
                     historySection.style.display = 'block';
@@ -513,43 +546,20 @@
         function createTaskCard(task, isHistory) {
             const card = document.createElement('div');
             card.className = `box hw-card ${isHistory ? 'completed' : ''}`;
-            
-            let actionButtons = isHistory 
-                ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore to Pending</button>`
-                : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete / Archive</button>`;
-
-            card.innerHTML = `
-                <div class="hw-header">
-                    <span class="subject">${task.subject}</span>
-                    <span class="hw-due">${task.due}</span>
-                </div>
-                <div class="hw-desc">${task.desc}</div>
-                ${task.image ? `<img src="${task.image}" class="hw-img">` : ''}
-                <div class="hw-actions">
-                    ${actionButtons}
-                </div>
-            `;
+            let actionBtns = isHistory ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>`;
+            card.innerHTML = `<div class="hw-header"><span class="subject">${task.subject}</span><span class="hw-due">${task.due}</span></div><div class="hw-desc">${task.desc}</div>${task.image ? `<img src="${task.image}" class="hw-img">` : ''}<div class="hw-actions">${actionBtns}</div>`;
             return card;
         }
 
-        // Never delete, only change status
         function updateTaskStatus(id, newStatus) {
             const tx = db.transaction("homework", "readwrite");
             const store = tx.objectStore("homework");
-            const req = store.get(id);
-            req.onsuccess = (e) => {
+            store.get(id).onsuccess = (e) => {
                 const task = e.target.result;
                 task.status = newStatus;
-                store.put(task); // Updates the record instead of erasing it
+                store.put(task); 
             };
             tx.oncomplete = () => renderHomework();
-        }
-
-        // Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW failed', err));
-            });
         }
     </script>
 </body>
