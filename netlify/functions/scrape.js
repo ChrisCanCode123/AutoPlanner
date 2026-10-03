@@ -1,7 +1,6 @@
 const puppeteer = require('puppeteer-core');
 
 exports.handler = async (event, context) => {
-  // 1. Block any requests that aren't sending data (POST requests)
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
@@ -9,14 +8,10 @@ exports.handler = async (event, context) => {
   let browser = null;
   
   try {
-    // 2. Extract the email and password sent from your frontend form
     const { email, password } = JSON.parse(event.body);
 
     if (!email || !password) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ success: false, error: "Missing email or password" })
-      };
+      return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
     }
 
     const chromium = (await import('@sparticuz/chromium')).default;
@@ -30,58 +25,61 @@ exports.handler = async (event, context) => {
 
     const page = await browser.newPage();
     
-    // 3. Navigate to the generic Arbor login URL 
-    await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
+    // 1. Go directly to the Carmel College login page
+    await page.goto('https://carmel-college.uk.arbor.education/', { waitUntil: 'domcontentloaded' });
     
-    // 4. Wait for the email field to appear, then type the email
-    // Puppeteer uses standard CSS selectors to find elements
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
     await page.waitForSelector(emailSelector);
     await page.type(emailSelector, email);
     
-    // 5. Wait for the password field and type the password
     const passwordSelector = 'input[type="password"]';
     await page.waitForSelector(passwordSelector);
     await page.type(passwordSelector, password);
 
-    // 6. Click the login button
-    // 6. Press the Enter key to submit the form
     await page.keyboard.press('Enter');
-
-    // 7. Wait for the page to finish redirecting after clicking login
+    
+    // Wait for the dashboard to load
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    // 8. Verify the login by checking if we are still on the login screen
-    const currentUrl = page.url();
-    const pageTitle = await page.title();
+    // 2. Navigate directly to your calendar page
+    await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'networkidle2' });
 
-    if (currentUrl.includes('login')) {
-       // If the URL still says "login", Arbor rejected the credentials
-       return {
-         statusCode: 401,
-         body: JSON.stringify({ success: false, error: "Invalid email or password." })
-       };
-    }
+    // 3. Wait for the calendar class blocks to appear on the screen
+    await page.waitForSelector('.mis-cal-event-time', { timeout: 10000 });
 
-    // If we made it here, the login worked!
+    // 4. Extract the class data instantly
+    const timetableData = await page.evaluate(() => {
+        // Find every class time element on the page
+        const timeBlocks = document.querySelectorAll('.mis-cal-event-time');
+        const classes = [];
+
+        timeBlocks.forEach(timeBlock => {
+            // Grab the parent container (which usually holds the subject name and room too)
+            const parent = timeBlock.parentElement;
+            
+            classes.push({
+                eventId: timeBlock.getAttribute('data-eventid'),
+                time: timeBlock.innerText.trim(),
+                // Get all the text visible on the calendar block
+                rawText: parent ? parent.innerText.trim() : 'No extra data'
+            });
+        });
+
+        return classes;
+    });
+
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true, 
-        message: "Successfully logged into Arbor Dashboard!", 
-        url: currentUrl,
-        title: pageTitle 
+        message: `Successfully synced ${timetableData.length} classes!`, 
+        data: timetableData 
       }),
     };
 
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ success: false, error: error.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
   } finally {
-    if (browser !== null) {
-      await browser.close();
-    }
+    if (browser !== null) { await browser.close(); }
   }
 };

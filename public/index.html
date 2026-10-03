@@ -2,55 +2,262 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoPlanner Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AutoPlanner Sync</title>
     <style>
-        body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
-        input, button { display: block; width: 100%; margin-bottom: 15px; padding: 10px; }
-        #status { margin-top: 20px; font-weight: bold; color: blue; }
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            padding: 30px 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-top: 40px;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px; /* Prevents iOS auto-zoom */
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Loading Screen */
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #status-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Results Screen */
+        #results {
+            display: none;
+        }
+
+        .success-banner {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .class-card {
+            background: #f9fafb;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .class-time {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .class-details {
+            font-size: 15px;
+            font-weight: 500;
+            white-space: pre-wrap; /* Keeps line breaks from the raw text */
+        }
     </style>
 </head>
 <body>
-    <h1>Arbor AutoPlanner</h1>
-    <p>Enter your Arbor details to sync your timetable.</p>
-    
-    <form id="loginForm">
-        <input type="email" id="email" placeholder="Arbor Email" required>
-        <input type="password" id="password" placeholder="Arbor Password" required>
-        <!-- If your school requires a specific Arbor URL, we can add a field for it later -->
-        <button type="submit">Sync Timetable</button>
-    </form>
 
-    <div id="status"></div>
+    <div class="container">
+        <!-- Main Form -->
+        <div id="form-section">
+            <h1>AutoPlanner</h1>
+            <p class="subtitle">Sync your Arbor timetable instantly.</p>
+            
+            <form id="loginForm">
+                <input type="email" id="email" placeholder="Arbor Email" required>
+                <input type="password" id="password" placeholder="Arbor Password" required>
+                <button type="submit">Sync Timetable</button>
+            </form>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="status-text">Booting secure connection...</div>
+        </div>
+
+        <!-- Data Display State -->
+        <div id="results">
+            <div class="success-banner" id="success-message">Sync Complete!</div>
+            <div id="timetable-list"></div>
+        </div>
+    </div>
 
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent the page from refreshing
+            e.preventDefault();
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const statusDiv = document.getElementById('status');
             
-            statusDiv.innerText = "Connecting to Arbor... (this takes about 10 seconds)";
+            const formSection = document.getElementById('form-section');
+            const loadingSection = document.getElementById('loading');
+            const resultsSection = document.getElementById('results');
+            const statusText = document.getElementById('status-text');
+            const timetableList = document.getElementById('timetable-list');
+            const successMessage = document.getElementById('success-message');
+
+            // Hide form, show loading
+            formSection.style.display = 'none';
+            loadingSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            timetableList.innerHTML = ''; // Clear old data
+
+            // Update status text every few seconds to keep the user engaged
+            setTimeout(() => statusText.innerText = "Logging into portal...", 2000);
+            setTimeout(() => statusText.innerText = "Extracting classes...", 5000);
+            setTimeout(() => statusText.innerText = "Almost done...", 8000);
 
             try {
-                // Send the credentials securely to your Netlify backend
                 const response = await fetch('/.netlify/functions/scrape', {
                     method: 'POST',
                     body: JSON.stringify({ email, password })
                 });
 
-
                 const data = await response.json();
                 
+                loadingSection.style.display = 'none';
+
                 if (data.success) {
-                    statusDiv.innerText = "Success! " + data.message;
-                    console.log("Backend response:", data);
+                    resultsSection.style.display = 'block';
+                    successMessage.innerText = data.message;
+                    
+                    if (data.data && data.data.length > 0) {
+                        // Loop through the scraped data and create a card for each class
+                        data.data.forEach(item => {
+                            const card = document.createElement('div');
+                            card.className = 'class-card';
+                            
+                            // Clean up the raw text by removing the time if it's duplicated in the rawText
+                            let cleanText = item.rawText.replace(item.time, '').trim();
+                            if(!cleanText) cleanText = "Unknown Subject";
+
+                            card.innerHTML = `
+                                <div class="class-time">${item.time}</div>
+                                <div class="class-details">${cleanText}</div>
+                            `;
+                            timetableList.appendChild(card);
+                        });
+                    } else {
+                        timetableList.innerHTML = '<p style="text-align:center; color:#6b7280;">No classes found for today.</p>';
+                    }
                 } else {
-                    statusDiv.innerText = "Error: " + data.error;
+                    // Show error and bring form back
+                    alert("Error: " + data.error);
+                    formSection.style.display = 'block';
                 }
             } catch (error) {
-                statusDiv.innerText = "Failed to connect to the server.";
+                loadingSection.style.display = 'none';
+                formSection.style.display = 'block';
+                alert("Failed to connect to the server. Please try again.");
             }
         });
     </script>
