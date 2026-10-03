@@ -187,15 +187,16 @@
     </div>
 
     <script>
-        // --- SECURITY ---
+// --- SECURITY ---
         function checkAccess() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             
             if (isStandalone) {
-                // Opened via App -> Check if previously unlocked
+                // Check if the app was already unlocked previously
                 if (localStorage.getItem('appUnlocked') === 'true') {
                     unlockApp();
                 } else {
+                    // First time opening as an app, ask for PIN
                     document.getElementById('auth-message').style.display = 'none';
                     document.getElementById('auth-prompt').style.display = 'block';
                 }
@@ -216,6 +217,7 @@
 
         function checkAppPin() {
             if (document.getElementById('app-pin-input').value === '7788') {
+                // Save the unlocked state permanently so it never asks again
                 localStorage.setItem('appUnlocked', 'true');
                 unlockApp();
             } else {
@@ -229,7 +231,7 @@
         }
         
         checkAccess();
-
+        
         // --- GLOBAL CLEAR DATA ---
         function clearAllData() {
             if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again. This will also require you to re-enter the app PIN.")) {
