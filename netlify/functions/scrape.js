@@ -45,7 +45,8 @@ exports.handler = async (event, context) => {
     await page.type(passwordSelector, password);
 
     // 6. Click the login button
-    await page.click('button[type="submit"]');
+    // 6. Press the Enter key to submit the form
+    await page.keyboard.press('Enter');
 
     // 7. Wait for the page to finish redirecting after clicking login
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
