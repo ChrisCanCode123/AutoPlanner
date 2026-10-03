@@ -217,44 +217,121 @@
         }
 
         // --- TIMETABLE RENDERER ---
-        function renderTimetable() {
+// --- TIMETABLE RENDERER (Filters, Frees & Staff) ---
+        function renderTimetable(viewType = 'today') {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const list = document.getElementById('timetable-list');
             list.innerHTML = '';
 
-            if (schedule.length > 0) {
-                document.getElementById('form-section').style.display = 'none';
-                schedule.forEach(daySchedule => {
-                    const dayHeader = document.createElement('div');
-                    dayHeader.className = 'day-header';
-                    dayHeader.innerText = daySchedule.day;
-                    list.appendChild(dayHeader);
+            document.getElementById('btn-view-today').classList.toggle('active-toggle', viewType === 'today');
+            document.getElementById('btn-view-week').classList.toggle('active-toggle', viewType === 'week');
 
-                    const dayTimeline = document.createElement('div');
-                    dayTimeline.className = 'timetable';
-
-                    daySchedule.classes.forEach(item => {
-                        const times = item.time.split('-');
-                        const start = times[0];
-                        const end = times[1] ? times[1] : '';
-                        const slot = document.createElement('div');
-                        slot.className = 'class-slot';
-                        slot.innerHTML = `
-                            <div class="time-col">
-                                <div class="time-start">${start}</div>
-                                <div class="time-end">${end}</div>
-                            </div>
-                            <div class="info-col">
-                                <div class="subject">${item.rawText}</div>
-                            </div>
-                        `;
-                        dayTimeline.appendChild(slot);
-                    });
-                    list.appendChild(dayTimeline);
-                });
-            } else {
+            if (schedule.length === 0) {
                 document.getElementById('form-section').style.display = 'block';
+                document.getElementById('timetable-controls').style.display = 'none';
+                return;
             }
+
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('timetable-controls').style.display = 'flex';
+
+            let daysToRender = schedule;
+            
+            if (viewType === 'today') {
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                let dayNum = new Date().getDay();
+                if (dayNum === 0 || dayNum === 6) dayNum = 1; // Default weekend to Monday
+                
+                daysToRender = schedule.filter(d => d.day.includes(days[dayNum]));
+                if (daysToRender.length === 0) daysToRender = [schedule[0]]; 
+            }
+
+            daysToRender.forEach(daySchedule => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                dayHeader.innerText = daySchedule.day;
+                list.appendChild(dayHeader);
+
+                const dayTimeline = document.createElement('div');
+                dayTimeline.className = 'timetable';
+
+                let realClasses = daySchedule.classes.filter(c => {
+                    const end = parseTime(c.time.split('-')[1] || "23:59");
+                    return end > 550; // Filter before 09:10
+                });
+
+                const dayStartMins = 550; 
+                const dayEndMins = 924;   
+                let currentMins = dayStartMins;
+
+                const slotsToRender = [];
+
+                realClasses.forEach(cls => {
+                    const [startStr, endStr] = cls.time.split('-');
+                    const startMins = parseTime(startStr);
+                    const endMins = parseTime(endStr);
+
+                    if (startMins - currentMins >= 45) {
+                        const isLunch = (currentMins >= 740 && startMins <= 815); 
+                        if (!isLunch) {
+                            slotsToRender.push({
+                                isFree: true,
+                                time: `${formatTime(currentMins)} - ${startStr}`,
+                                rawText: "Free Period"
+                            });
+                        }
+                    }
+
+                    slotsToRender.push({ 
+                        isFree: false, 
+                        time: cls.time, 
+                        rawText: cls.rawText,
+                        teacher: cls.teacher,
+                        room: cls.room
+                    });
+                    currentMins = endMins;
+                });
+
+                if (dayEndMins - currentMins >= 45) {
+                    slotsToRender.push({
+                        isFree: true,
+                        time: `${formatTime(currentMins)} - 15:24`,
+                        rawText: "Free Period"
+                    });
+                }
+
+                slotsToRender.forEach(slotData => {
+                    const [start, end] = slotData.time.split('-');
+                    const slot = document.createElement('div');
+                    slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
+                    
+                    // Build the secondary text string if teacher/room exists
+                    let metaHTML = '';
+                    if (!slotData.isFree && (slotData.teacher || slotData.room)) {
+                        let metaParts = [];
+                        if (slotData.teacher) metaParts.push(`🧑‍🏫 ${slotData.teacher}`);
+                        if (slotData.room) metaParts.push(`📍 ${slotData.room}`);
+                        
+                        metaHTML = `<div style="font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500;">
+                            ${metaParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}
+                        </div>`;
+                    }
+
+                    slot.innerHTML = `
+                        <div class="time-col">
+                            <div class="time-start">${start.trim()}</div>
+                            <div class="time-end">${end ? end.trim() : ''}</div>
+                        </div>
+                        <div class="info-col">
+                            <div class="subject">${slotData.rawText}</div>
+                            ${metaHTML}
+                        </div>
+                    `;
+                    dayTimeline.appendChild(slot);
+                });
+
+                list.appendChild(dayTimeline);
+            });
         }
         renderTimetable();
 
