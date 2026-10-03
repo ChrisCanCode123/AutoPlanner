@@ -1,18 +1,13 @@
 const puppeteer = require('puppeteer-core');
 
 exports.handler = async (event, context) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: "Method Not Allowed" };
-  }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: "Method Not Allowed" };
 
   let browser = null;
   
   try {
     const { email, password } = JSON.parse(event.body);
-
-    if (!email || !password) {
-      return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
-    }
+    if (!email || !password) return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
 
     const chromium = (await import('@sparticuz/chromium')).default;
 
@@ -25,8 +20,18 @@ exports.handler = async (event, context) => {
 
     const page = await browser.newPage();
     
-    // 1. Go directly to the Carmel College login page
-    await page.goto('https://carmel-college.uk.arbor.education/', { waitUntil: 'domcontentloaded' });
+    // SPEED BOOST 1: Block all images, stylesheets, and fonts from loading
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+        if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+            req.abort();
+        } else {
+            req.continue();
+        }
+    });
+
+    // SPEED BOOST 2: Go straight to the calendar. Arbor will ask for login, then auto-return here.
+    await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
     
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
     await page.waitForSelector(emailSelector);
@@ -36,31 +41,20 @@ exports.handler = async (event, context) => {
     await page.waitForSelector(passwordSelector);
     await page.type(passwordSelector, password);
 
+    // Hit enter to log in
     await page.keyboard.press('Enter');
-    
-    // Wait for the dashboard to load
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    // 2. Navigate directly to your calendar page
-    await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'networkidle2' });
+    // SPEED BOOST 3: Wait specifically for the class blocks to appear, skipping the network idle wait
+    await page.waitForSelector('.mis-cal-event-time', { timeout: 8000 });
 
-    // 3. Wait for the calendar class blocks to appear on the screen
-    await page.waitForSelector('.mis-cal-event-time', { timeout: 10000 });
-
-    // 4. Extract the class data instantly
     const timetableData = await page.evaluate(() => {
-        // Find every class time element on the page
         const timeBlocks = document.querySelectorAll('.mis-cal-event-time');
         const classes = [];
 
         timeBlocks.forEach(timeBlock => {
-            // Grab the parent container (which usually holds the subject name and room too)
             const parent = timeBlock.parentElement;
-            
             classes.push({
-                eventId: timeBlock.getAttribute('data-eventid'),
                 time: timeBlock.innerText.trim(),
-                // Get all the text visible on the calendar block
                 rawText: parent ? parent.innerText.trim() : 'No extra data'
             });
         });
