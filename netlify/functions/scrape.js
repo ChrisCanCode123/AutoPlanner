@@ -20,7 +20,6 @@ exports.handler = async (event, context) => {
 
     const page = await browser.newPage();
     
-    // SPEED BOOST 1: Block all images, stylesheets, and fonts from loading
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
@@ -30,7 +29,6 @@ exports.handler = async (event, context) => {
         }
     });
 
-    // SPEED BOOST 2: Go straight to the calendar. Arbor will ask for login, then auto-return here.
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
     
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
@@ -41,11 +39,33 @@ exports.handler = async (event, context) => {
     await page.waitForSelector(passwordSelector);
     await page.type(passwordSelector, password);
 
-    // Hit enter to log in
     await page.keyboard.press('Enter');
 
-    // SPEED BOOST 3: Wait specifically for the class blocks to appear, skipping the network idle wait
-    await page.waitForSelector('.mis-cal-event-time', { timeout: 8000 });
+    // Wait for the main dashboard/calendar skeleton to load
+    await page.waitForSelector('.mis-calendar-segmeted-button-container', { timeout: 8000 });
+
+    // NEW: Find and click the "5 Days" button to reveal the whole week
+    await page.evaluate(() => {
+        const spans = Array.from(document.querySelectorAll('span.x-btn-inner'));
+        const weekBtn = spans.find(span => span.innerText.includes('5 Days'));
+        if (weekBtn) weekBtn.click();
+    });
+
+    // Wait 1.5 seconds for the week's classes to visually populate on the screen
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    try {
+        await page.waitForSelector('.mis-cal-event-time', { timeout: 4000 });
+    } catch (err) {
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ 
+                success: true, 
+                message: "Sync complete! No classes scheduled for this week.", 
+                data: [] 
+            }),
+        };
+    }
 
     const timetableData = await page.evaluate(() => {
         const timeBlocks = document.querySelectorAll('.mis-cal-event-time');
@@ -66,7 +86,7 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true, 
-        message: `Successfully synced ${timetableData.length} classes!`, 
+        message: `Successfully synced ${timetableData.length} classes for the week!`, 
         data: timetableData 
       }),
     };
