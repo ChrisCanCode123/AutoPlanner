@@ -3,15 +3,12 @@ const puppeteer = require('puppeteer-core');
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: "Method Not Allowed" };
 
-  const startTime = Date.now();
-  const logTime = (step) => console.log(`[${Date.now() - startTime}ms] ${step}`);
-
   let browser = null;
   
   try {
     const { email, password } = JSON.parse(event.body);
-    
-    logTime("Starting browser boot sequence...");
+    if (!email || !password) return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
+
     const chromium = (await import('@sparticuz/chromium')).default;
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -19,55 +16,57 @@ exports.handler = async (event, context) => {
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     });
-    
+
     const page = await browser.newPage();
     
+    // Speed Boost: Block images and CSS
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) req.abort();
         else req.continue();
     });
 
-    logTime("Loading universal Arbor login page...");
-    // Revert to the universal URL that successfully bypassed SSO earlier
+    // 1. USE YOUR PROVEN WORKING LOGIN METHOD
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
     
-    logTime("Login page loaded. Typing credentials...");
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
-    await page.waitForSelector(emailSelector, { timeout: 10000 });
+    await page.waitForSelector(emailSelector);
     await page.type(emailSelector, email);
     
     const passwordSelector = 'input[type="password"]';
     await page.waitForSelector(passwordSelector);
     await page.type(passwordSelector, password);
 
-    logTime("Pressing enter to log in...");
     await page.keyboard.press('Enter');
+    
+    // Wait for Arbor to fully authenticate and redirect to Carmel College
+    await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-    logTime("Waiting 5 seconds for cross-domain redirect to Carmel College...");
-    // Give Arbor time to route from login.arbor.sc -> carmel-college.uk.arbor.education
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    const currentUrl = page.url();
+    if (currentUrl.includes('login')) {
+       return { statusCode: 401, body: JSON.stringify({ success: false, error: "Invalid email or password." }) };
+    }
 
-    logTime("Fetching raw JSON calendar data...");
+    // 2. NOW FETCH THE HIGH-SPEED JSON DATA
     const jsonUrl = 'https://carmel-college.uk.arbor.education/calendar-entry/list-static/format/json/';
     await page.goto(jsonUrl, { waitUntil: 'domcontentloaded' });
 
-    logTime("Extracting data from page...");
     const rawData = await page.evaluate(() => document.body.innerText);
     const parsedData = JSON.parse(rawData);
 
+    // SAFETY CHECK: Prevent the 'reading 0' crash if Arbor denies the JSON request
+    if (!parsedData || !parsedData.items || parsedData.items.length === 0) {
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: "Logged in, but Arbor blocked the data request." }) };
+    }
+
+    // 3. EXTRACT THE CLASSES
     const pages = parsedData.items[0].fields.response.value.pages;
     const currentWeekPage = pages.find(p => p.html !== undefined);
 
     if (!currentWeekPage) {
-        logTime("No classes found this week.");
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ success: true, message: "No classes found for this timeframe.", data: [] }),
-        };
+        return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found for this timeframe.", data: [] }) };
     }
 
-    logTime("Parsing HTML block from JSON...");
     const timetableData = await page.evaluate((htmlString) => {
         const div = document.createElement('div');
         div.innerHTML = htmlString;
@@ -90,7 +89,6 @@ exports.handler = async (event, context) => {
         return classes;
     }, currentWeekPage.html);
 
-    logTime(`Success! Extracted ${timetableData.length} classes.`);
     return {
       statusCode: 200,
       body: JSON.stringify({ 
@@ -101,8 +99,7 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    logTime(`CRASHED: ${error.message}`);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: "Scraper failed: " + error.message }) };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
   } finally {
     if (browser !== null) { await browser.close(); }
   }
