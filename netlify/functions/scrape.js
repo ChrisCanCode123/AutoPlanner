@@ -49,49 +49,62 @@ exports.handler = async (event, context) => {
     try {
         await page.waitForSelector('.mis-cal-event-time', { timeout: 8000 });
     } catch (err) {
-        return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found on the calendar today.", data: [] }) };
+        return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found.", data: [] }) };
     }
 
+    // NEW: Extract columns and group by day
     const timetableData = await page.evaluate(() => {
-        const events = document.querySelectorAll('.mis-cal-event');
-        const classes = [];
-        const seen = new Set(); // Prevent duplicates
+        // 1. Get the day names from the top of the calendar (e.g., "28 Monday")
+        const headers = Array.from(document.querySelectorAll('thead .mis-calendar-date'));
+        const dayNames = headers.map(th => th.innerText.replace(/\n/g, ' ').trim());
 
-        events.forEach(event => {
-            const timeEl = event.querySelector('.mis-cal-event-time');
-            const titleEl = event.querySelector('.title');
-            
-            if (timeEl && titleEl) {
-                const timeString = timeEl.innerText.trim();
-                const rawText = titleEl.innerText.trim();
+        // 2. Get the columns that hold the actual events (skipping the time axis column)
+        const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1);
+
+        const schedule = [];
+
+        // 3. Loop through each column (Monday, Tuesday, etc.)
+        dayColumns.forEach((col, index) => {
+            const dayName = dayNames[index] || `Day ${index + 1}`;
+            const events = col.querySelectorAll('.mis-cal-event');
+            const classes = [];
+            const seen = new Set();
+
+            events.forEach(event => {
+                const timeEl = event.querySelector('.mis-cal-event-time');
+                const titleEl = event.querySelector('.title');
                 
-                // FILTER: Split "14:02-14:02" into two halves. If they match, skip it.
-                const times = timeString.split('-');
-                if (times.length === 2 && times[0] === times[1]) {
-                    return; 
-                }
+                if (timeEl && titleEl) {
+                    const timeString = timeEl.innerText.trim();
+                    const rawText = titleEl.innerText.trim();
+                    
+                    // Filter out 0-minute announcements (e.g., CAFOD)
+                    const times = timeString.split('-');
+                    if (times.length === 2 && times[0] === times[1]) return;
 
-                // Create a unique ID to prevent double-counting the same class
-                const uniqueId = timeString + rawText;
-                if (!seen.has(uniqueId)) {
-                    seen.add(uniqueId);
-                    classes.push({
-                        time: timeString,
-                        rawText: rawText
-                    });
+                    const uniqueId = timeString + rawText;
+                    if (!seen.has(uniqueId)) {
+                        seen.add(uniqueId);
+                        classes.push({ time: timeString, rawText: rawText });
+                    }
                 }
+            });
+
+            // If this specific day has classes, add it to our final schedule
+            if (classes.length > 0) {
+                classes.sort((a, b) => a.time.localeCompare(b.time));
+                schedule.push({ day: dayName, classes: classes });
             }
         });
 
-        // Sort chronologically
-        return classes.sort((a, b) => a.time.localeCompare(b.time));
+        return schedule;
     });
 
     return {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true, 
-        message: `Successfully synced ${timetableData.length} classes!`, 
+        message: `Successfully synced the week!`, 
         data: timetableData 
       }),
     };
