@@ -22,16 +22,15 @@ exports.handler = async (event, context) => {
     
     const page = await browser.newPage();
     
-    // Block heavy files to speed up the boot sequence
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) req.abort();
         else req.continue();
     });
 
-    logTime("Loading standard Arbor login page...");
-    // FIX: Go to the reliable base login URL instead of the calendar deep link
-    await page.goto('https://carmel-college.uk.arbor.education/', { waitUntil: 'networkidle2' });
+    logTime("Loading universal Arbor login page...");
+    // Revert to the universal URL that successfully bypassed SSO earlier
+    await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
     
     logTime("Login page loaded. Typing credentials...");
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
@@ -45,8 +44,9 @@ exports.handler = async (event, context) => {
     logTime("Pressing enter to log in...");
     await page.keyboard.press('Enter');
 
-    logTime("Waiting for Arbor servers to authenticate...");
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
+    logTime("Waiting 5 seconds for cross-domain redirect to Carmel College...");
+    // Give Arbor time to route from login.arbor.sc -> carmel-college.uk.arbor.education
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
     logTime("Fetching raw JSON calendar data...");
     const jsonUrl = 'https://carmel-college.uk.arbor.education/calendar-entry/list-static/format/json/';
@@ -56,7 +56,6 @@ exports.handler = async (event, context) => {
     const rawData = await page.evaluate(() => document.body.innerText);
     const parsedData = JSON.parse(rawData);
 
-    // Dig through the JSON to find the block of HTML containing the classes
     const pages = parsedData.items[0].fields.response.value.pages;
     const currentWeekPage = pages.find(p => p.html !== undefined);
 
