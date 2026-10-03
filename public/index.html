@@ -3,9 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoPlanner</title>
+    <title>AutoPlanner Login</title>
+    <style>
+        body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
+        input, button { display: block; width: 100%; margin-bottom: 15px; padding: 10px; }
+        #status { margin-top: 20px; font-weight: bold; color: blue; }
+    </style>
 </head>
 <body>
-    <h1>Arbor AutoPlanner is Live</h1>
+    <h1>Arbor AutoPlanner</h1>
+    <p>Enter your Arbor details to sync your timetable.</p>
+    
+    <form id="loginForm">
+        <input type="email" id="email" placeholder="Arbor Email" required>
+        <input type="password" id="password" placeholder="Arbor Password" required>
+        <!-- If your school requires a specific Arbor URL, we can add a field for it later -->
+        <button type="submit">Sync Timetable</button>
+    </form>
+
+    <div id="status"></div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent the page from refreshing
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('status');
+            
+            statusDiv.innerText = "Connecting to Arbor... (this takes about 10 seconds)";
+
+            try {
+                // Send the credentials securely to your Netlify backend
+                const response = await fetch('/.netlify/functions/scrape', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerText = "Success! " + data.message;
+                    console.log("Backend response:", data);
+                } else {
+                    statusDiv.innerText = "Error: " + data.error;
+                }
+            } catch (error) {
+                statusDiv.innerText = "Failed to connect to the server.";
+            }
+        });
+    </script>
 </body>
 </html>
