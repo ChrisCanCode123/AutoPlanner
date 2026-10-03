@@ -14,78 +14,58 @@
             --text-main: #111827;
             --text-muted: #6b7280;
             --line-color: #e5e7eb;
+            --success: #10b981;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 
-        body { 
-            background-color: var(--bg); 
-            color: var(--text-main); 
-            display: flex; 
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden; /* Prevent body scrolling, allow content area to scroll */
-        }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        /* Top Header */
-        header {
-            background-color: var(--card-bg);
-            padding: 16px 20px;
-            font-size: 20px;
-            font-weight: 700;
-            border-bottom: 1px solid var(--line-color);
-            text-align: center;
-        }
+        header { background-color: var(--card-bg); padding: 16px 20px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--line-color); text-align: center; }
 
-        /* Main Content Area */
-        main {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 20px;
-            padding-bottom: 80px; /* Space for bottom nav */
-        }
+        main { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
 
-        /* Tab Views */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Bottom Navigation */
-        nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: var(--card-bg);
-            border-top: 1px solid var(--line-color);
-            display: flex;
-            justify-content: space-around;
-            padding: 12px 0;
-            padding-bottom: env(safe-area-inset-bottom, 12px); /* iPhone notch support */
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
+        nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--card-bg); border-top: 1px solid var(--line-color); display: flex; justify-content: space-around; padding: 12px 0; padding-bottom: env(safe-area-inset-bottom, 12px); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); background: none; border: none; font-size: 12px; font-weight: 500; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
-
-        .nav-icon {
-            width: 24px;
-            height: 24px;
-            margin-bottom: 4px;
-            border-radius: 4px;
-            background-color: currentColor; /* Placeholder for actual SVG icons */
-            opacity: 0.2;
-        }
+        .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; border-radius: 4px; background-color: currentColor; opacity: 0.2; }
         .nav-item.active .nav-icon { opacity: 1; }
+
+        /* Forms & Buttons */
+        input, select, textarea { width: 100%; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; margin-bottom: 12px; font-family: inherit; }
+        button.btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        
+        .box { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--line-color); }
+        
+        /* Loading */
+        #loading { display: none; text-align: center; padding: 40px 0; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Timetable UI */
+        .day-header { margin-top: 20px; margin-bottom: 15px; font-size: 18px; color: var(--primary); font-weight: bold; border-bottom: 2px solid var(--line-color); padding-bottom: 5px; }
+        .timetable { position: relative; padding-left: 20px; margin-bottom: 30px; }
+        .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 27px; width: 2px; background-color: var(--line-color); }
+        .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
+        .class-slot::before { content: ''; position: absolute; left: 3px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--primary); border: 3px solid var(--bg); z-index: 1; }
+        .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
+        .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
+        .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
+        .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
+
+        /* Homework Cards */
+        .hw-card { display: flex; flex-direction: column; gap: 8px; }
+        .hw-header { display: flex; justify-content: space-between; align-items: center; }
+        .hw-due { font-size: 12px; font-weight: 600; color: #ef4444; background: #fee2e2; padding: 4px 8px; border-radius: 4px; }
+        .hw-desc { font-size: 14px; color: var(--text-main); }
+        .hw-img { width: 100%; border-radius: 8px; margin-top: 8px; max-height: 200px; object-fit: cover; }
+        .hw-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-complete { background: var(--success); flex: 1; padding: 10px; border-radius: 6px; color: white; border: none; font-weight: bold; }
+        .btn-delete { background: var(--text-muted); padding: 10px 15px; border-radius: 6px; color: white; border: none; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -95,66 +75,310 @@
     <main>
         <!-- DASHBOARD TAB -->
         <div id="tab-dashboard" class="tab-content active">
-            <h2>Pending Homework</h2>
-            <p style="color: var(--text-muted); margin-top: 10px;">Your tasks will appear here.</p>
+            <div id="homework-list"></div>
         </div>
 
         <!-- ADD HOMEWORK TAB -->
         <div id="tab-add" class="tab-content">
-            <h2>Add Homework</h2>
-            <p style="color: var(--text-muted); margin-top: 10px;">Auto-detecting current class...</p>
+            <div class="box">
+                <p id="context-msg" style="color: var(--primary); font-weight: 600; margin-bottom: 15px;">Detecting class...</p>
+                
+                <form id="addHwForm">
+                    <select id="hw-subject" required>
+                        <option value="">Select Subject...</option>
+                        <!-- Populated by JS -->
+                    </select>
+
+                    <div id="due-date-preview" style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; font-weight: 500;">
+                        Due: Select a subject first
+                    </div>
+                    
+                    <textarea id="hw-desc" placeholder="What's the homework?" rows="3" required></textarea>
+                    
+                    <label style="display: block; margin-bottom: 5px; font-size: 14px; color: var(--text-muted);">Attach Photo (Optional)</label>
+                    <input type="file" id="hw-image" accept="image/*">
+                    
+                    <button type="submit" class="btn" style="margin-top: 10px;">Save Homework</button>
+                </form>
+            </div>
         </div>
 
         <!-- TIMETABLE TAB -->
         <div id="tab-timetable" class="tab-content">
-            <h2>Sync Timetable</h2>
-            <!-- We will drop the login form and vertical timeline here next -->
+            <div id="form-section" class="box">
+                <h2 style="margin-bottom: 15px;">Sync Arbor</h2>
+                <form id="loginForm">
+                    <input type="email" id="email" placeholder="Arbor Email" required>
+                    <input type="password" id="password" placeholder="Arbor Password" required>
+                    <button type="submit" class="btn">Download Timetable</button>
+                </form>
+            </div>
+
+            <div id="loading">
+                <div class="spinner"></div>
+                <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
+            </div>
+
+            <div id="timetable-list"></div>
         </div>
     </main>
 
     <nav>
         <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')">
-            <div class="nav-icon"></div>
-            Tasks
+            <div class="nav-icon"></div>Tasks
         </button>
         <button class="nav-item" onclick="switchTab('add', 'Add Homework')">
-            <div class="nav-icon"></div>
-            Add
+            <div class="nav-icon"></div>Add
         </button>
         <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')">
-            <div class="nav-icon"></div>
-            Timetable
+            <div class="nav-icon"></div>Timetable
         </button>
     </nav>
 
     <script>
-        // 1. Register Service Worker for Offline Mode
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registered', reg))
-                    .catch(err => console.error('Service Worker failed', err));
-            });
+        // --- 1. OFFLINE DATABASE SETUP (IndexedDB) ---
+        let db;
+        const request = indexedDB.open("AutoPlannerDB", 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore("homework", { keyPath: "id" });
+        };
+        request.onsuccess = (e) => { 
+            db = e.target.result; 
+            renderHomework(); 
+        };
+
+        // --- 2. TAB SWITCHING ---
+        function switchTab(tabId, headerTitle) {
+            document.getElementById('app-header').innerText = headerTitle;
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            if(tabId === 'add') populateAddForm();
+            if(tabId === 'dashboard') renderHomework();
         }
 
-        // 2. Tab Switching Logic
-        function switchTab(tabId, headerTitle) {
-            // Update Header
-            document.getElementById('app-header').innerText = headerTitle;
+        // --- 3. TIMETABLE RENDERER ---
+        function renderTimetable() {
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            const list = document.getElementById('timetable-list');
+            list.innerHTML = '';
 
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
+            if (schedule.length > 0) {
+                document.getElementById('form-section').style.display = 'none'; // Hide login if saved
+                
+                schedule.forEach(daySchedule => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.innerText = daySchedule.day;
+                    list.appendChild(dayHeader);
+
+                    const dayTimeline = document.createElement('div');
+                    dayTimeline.className = 'timetable';
+
+                    daySchedule.classes.forEach(item => {
+                        const [start, end] = item.time.split('-');
+                        const slot = document.createElement('div');
+                        slot.className = 'class-slot';
+                        slot.innerHTML = `
+                            <div class="time-col">
+                                <div class="time-start">${start}</div>
+                                <div class="time-end">${end || ''}</div>
+                            </div>
+                            <div class="info-col">
+                                <div class="subject">${item.rawText}</div>
+                            </div>
+                        `;
+                        dayTimeline.appendChild(slot);
+                    });
+                    list.appendChild(dayTimeline);
+                });
+            } else {
+                document.getElementById('form-section').style.display = 'block';
+            }
+        }
+        renderTimetable();
+
+        // --- 4. ARBOR SCRAPER ---
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                const response = await fetch('/.netlify/functions/scrape', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        email: document.getElementById('email').value, 
+                        password: document.getElementById('password').value 
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('loading').style.display = 'none';
+
+                if (data.success) {
+                    localStorage.setItem('schedule', JSON.stringify(data.data));
+                    renderTimetable();
+                } else {
+                    alert("Error: " + data.error);
+                    document.getElementById('form-section').style.display = 'block';
+                }
+            } catch (error) {
+                alert("Connection failed.");
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('form-section').style.display = 'block';
+            }
+        });
+
+        // --- 5. "RIGHT NOW" MATH & ADD FORM ---
+        function parseTime(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function populateAddForm() {
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            const select = document.getElementById('hw-subject');
+            select.innerHTML = '<option value="">Select Subject...</option>';
+            
+            // Extract unique subjects
+            const subjects = [...new Set(schedule.flatMap(d => d.classes.map(c => c.rawText)))];
+            subjects.forEach(sub => {
+                select.innerHTML += `<option value="${sub}">${sub}</option>`;
             });
 
-            // Show selected tab
-            document.getElementById('tab-' + tabId).classList.add('active');
+            // Auto-detect current class
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const todayName = days[now.getDay()];
+            const currentMins = now.getHours() * 60 + now.getMinutes();
 
-            // Update Nav visual state
-            document.querySelectorAll('.nav-item').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.currentTarget.classList.add('active');
+            const todaySchedule = schedule.find(d => d.day.includes(todayName));
+            let currentClass = null;
+
+            if (todaySchedule) {
+                for (let cls of todaySchedule.classes) {
+                    const [start, end] = cls.time.split('-');
+                    if (currentMins >= parseTime(start) && currentMins <= parseTime(end)) {
+                        currentClass = cls.rawText;
+                        break;
+                    }
+                }
+            }
+
+            if (currentClass) {
+                document.getElementById('context-msg').innerText = `You are in ${currentClass}`;
+                select.value = currentClass;
+                calculateNextLesson(currentClass, schedule);
+            } else {
+                document.getElementById('context-msg').innerText = "Assigning Homework";
+            }
+        }
+
+        // Live due date calculation
+        document.getElementById('hw-subject').addEventListener('change', (e) => {
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            calculateNextLesson(e.target.value, schedule);
+        });
+
+        function calculateNextLesson(subject, schedule) {
+            if(!subject) return;
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            let nextDate = "Unknown";
+
+            // Scan ahead 14 days to find the next occurrence
+            for(let i = 1; i <= 14; i++) {
+                const checkDate = new Date(now);
+                checkDate.setDate(now.getDate() + i);
+                const dayName = days[checkDate.getDay()];
+                
+                const daySchedule = schedule.find(d => d.day.includes(dayName));
+                if(daySchedule && daySchedule.classes.find(c => c.rawText === subject)) {
+                    nextDate = `Next Lesson: ${dayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
+                    break;
+                }
+            }
+            document.getElementById('due-date-preview').innerText = nextDate;
+            document.getElementById('due-date-preview').dataset.due = nextDate;
+        }
+
+        // --- 6. SAVE HOMEWORK ---
+        document.getElementById('addHwForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const file = document.getElementById('hw-image').files[0];
+            const task = {
+                id: Date.now().toString(),
+                subject: document.getElementById('hw-subject').value,
+                desc: document.getElementById('hw-desc').value,
+                due: document.getElementById('due-date-preview').dataset.due || 'Unknown',
+                image: null
+            };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    task.image = evt.target.result;
+                    saveTaskToDB(task);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                saveTaskToDB(task);
+            }
+        });
+
+        function saveTaskToDB(task) {
+            const tx = db.transaction("homework", "readwrite");
+            tx.objectStore("homework").add(task);
+            tx.oncomplete = () => {
+                document.getElementById('addHwForm').reset();
+                switchTab('dashboard', 'Dashboard');
+            };
+        }
+
+        // --- 7. RENDER DASHBOARD ---
+        function renderHomework() {
+            if (!db) return;
+            const list = document.getElementById('homework-list');
+            list.innerHTML = '';
+            
+            const tx = db.transaction("homework", "readonly");
+            const request = tx.objectStore("homework").getAll();
+            
+            request.onsuccess = e => {
+                const tasks = e.target.result;
+                if (tasks.length === 0) {
+                    list.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 20px;">No pending homework. You are all caught up!</p>';
+                    return;
+                }
+
+                tasks.forEach(task => {
+                    const card = document.createElement('div');
+                    card.className = 'box hw-card';
+                    card.innerHTML = `
+                        <div class="hw-header">
+                            <span class="subject">${task.subject}</span>
+                            <span class="hw-due">${task.due}</span>
+                        </div>
+                        <div class="hw-desc">${task.desc}</div>
+                        ${task.image ? `<img src="${task.image}" class="hw-img">` : ''}
+                        <div class="hw-actions">
+                            <button class="btn-complete" onclick="deleteTask('${task.id}')">Mark Complete</button>
+                            <button class="btn-delete" onclick="deleteTask('${task.id}')">Delete</button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            };
+        }
+
+        function deleteTask(id) {
+            const tx = db.transaction("homework", "readwrite");
+            tx.objectStore("homework").delete(id);
+            tx.oncomplete = () => renderHomework();
         }
     </script>
 </body>
