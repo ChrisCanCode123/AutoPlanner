@@ -31,7 +31,7 @@
         body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
         /* Security Screen */
-        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; }
         #app-container { display: none; flex-direction: column; height: 100%; width: 100%; }
 
         header { background-color: var(--card-bg); padding: 16px 20px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--line-color); display: flex; justify-content: space-between; align-items: center; }
@@ -99,7 +99,7 @@
 
     <!-- SECURITY OVERLAY -->
     <div id="auth-screen">
-        <div id="auth-message" style="font-size: 18px; font-weight: 600;">Verifying Access...</div>
+        <div id="auth-message" style="font-size: 18px; font-weight: 600; line-height: 1.5;">Verifying Access...</div>
         <div id="auth-prompt" class="box" style="display: none; width: 100%; max-width: 350px;">
             <h2 style="margin-bottom: 5px;">App Locked</h2>
             <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 14px;">Enter PIN to continue</p>
@@ -195,8 +195,11 @@
                 document.getElementById('auth-prompt').style.display = 'block';
             } else {
                 const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('pin') === '5566') unlockApp();
-                else {
+                if (urlParams.get('pin') === '5566') {
+                    const msg = document.getElementById('auth-message');
+                    msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted);'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
+                    msg.style.color = "var(--text-main)";
+                } else {
                     const msg = document.getElementById('auth-message');
                     msg.innerText = "Access Denied.";
                     msg.style.color = "#ef4444";
@@ -278,7 +281,6 @@
             const list = document.getElementById('timetable-list');
             list.innerHTML = '';
 
-            // Optional chaining to prevent the null error if buttons are missing
             document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
             document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
 
@@ -361,12 +363,11 @@
                     const slot = document.createElement('div');
                     slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
                     
-                    // Build the secondary text string if teacher/room exists
                     let metaHTML = '';
                     if (!slotData.isFree && (slotData.teacher || slotData.room)) {
                         let metaParts = [];
-                        if (slotData.teacher) metaParts.push(`🧑‍🏫 ${slotData.teacher}`);
-                        if (slotData.room) metaParts.push(`📍 ${slotData.room}`);
+                        if (slotData.teacher) metaParts.push(slotData.teacher);
+                        if (slotData.room) metaParts.push(slotData.room);
                         
                         metaHTML = `<div style="font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500;">
                             ${metaParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}
