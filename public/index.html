@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoPlanner Schedule</title>
+    <title>AutoPlanner</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
     <style>
         :root {
             --primary: #4f46e5;
@@ -14,175 +16,146 @@
             --line-color: #e5e7eb;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 
-        body { background-color: var(--bg); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; padding: 20px; }
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            display: flex; 
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scrolling, allow content area to scroll */
+        }
 
-        .container { width: 100%; max-width: 450px; margin-top: 20px; }
+        /* Top Header */
+        header {
+            background-color: var(--card-bg);
+            padding: 16px 20px;
+            font-size: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--line-color);
+            text-align: center;
+        }
 
-        /* Form Styles */
-        .login-box { background: var(--card-bg); padding: 30px 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
-        h1 { font-size: 24px; text-align: center; margin-bottom: 8px; }
-        p.subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
-        input { width: 100%; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; outline: none; margin-bottom: 12px; }
-        button { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        
-        /* Loading Screen */
-        #loading { display: none; text-align: center; padding: 40px 0; }
-        .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        
-        /* Timetable Layout */
-        #results { display: none; }
-        
-        .day-header { margin-top: 30px; margin-bottom: 15px; font-size: 18px; color: var(--primary); font-weight: bold; border-bottom: 2px solid var(--line-color); padding-bottom: 5px; }
-        
-        .timetable { position: relative; padding-left: 20px; margin-bottom: 30px; }
-        
-        /* The vertical timeline line */
-        .timetable::before {
-            content: '';
-            position: absolute;
-            top: 0;
+        /* Main Content Area */
+        main {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 80px; /* Space for bottom nav */
+        }
+
+        /* Tab Views */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Bottom Navigation */
+        nav {
+            position: fixed;
             bottom: 0;
-            left: 27px;
-            width: 2px;
-            background-color: var(--line-color);
+            left: 0;
+            width: 100%;
+            background-color: var(--card-bg);
+            border-top: 1px solid var(--line-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            padding-bottom: env(safe-area-inset-bottom, 12px); /* iPhone notch support */
         }
 
-        .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
-        
-        /* The timeline dot */
-        .class-slot::before {
-            content: '';
-            position: absolute;
-            left: 3px;
-            top: 6px;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: var(--primary);
-            border: 3px solid var(--bg);
-            z-index: 1;
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
         }
 
-        .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
-        .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
-        .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .nav-item.active { color: var(--primary); }
 
-        .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
-        .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            background-color: currentColor; /* Placeholder for actual SVG icons */
+            opacity: 0.2;
+        }
+        .nav-item.active .nav-icon { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="form-section" class="login-box">
-            <h1>AutoPlanner</h1>
-            <p class="subtitle">Sync your weekly timetable.</p>
-            <form id="loginForm">
-                <input type="email" id="email" placeholder="Arbor Email" required>
-                <input type="password" id="password" placeholder="Arbor Password" required>
-                <button type="submit">Sync Timetable</button>
-            </form>
+    <header id="app-header">Dashboard</header>
+
+    <main>
+        <!-- DASHBOARD TAB -->
+        <div id="tab-dashboard" class="tab-content active">
+            <h2>Pending Homework</h2>
+            <p style="color: var(--text-muted); margin-top: 10px;">Your tasks will appear here.</p>
         </div>
 
-        <div id="loading">
-            <div class="spinner"></div>
-            <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
+        <!-- ADD HOMEWORK TAB -->
+        <div id="tab-add" class="tab-content">
+            <h2>Add Homework</h2>
+            <p style="color: var(--text-muted); margin-top: 10px;">Auto-detecting current class...</p>
         </div>
 
-        <div id="results">
-            <h2 style="font-size: 22px;">Your Week</h2>
-            <div id="timetable-list"></div>
+        <!-- TIMETABLE TAB -->
+        <div id="tab-timetable" class="tab-content">
+            <h2>Sync Timetable</h2>
+            <!-- We will drop the login form and vertical timeline here next -->
         </div>
-    </div>
+    </main>
+
+    <nav>
+        <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')">
+            <div class="nav-icon"></div>
+            Tasks
+        </button>
+        <button class="nav-item" onclick="switchTab('add', 'Add Homework')">
+            <div class="nav-icon"></div>
+            Add
+        </button>
+        <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')">
+            <div class="nav-icon"></div>
+            Timetable
+        </button>
+    </nav>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            document.getElementById('form-section').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('status-text').innerText = "Syncing secure connection...";
-            document.getElementById('status-text').style.color = "var(--text-muted)";
+        // 1. Register Service Worker for Offline Mode
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker failed', err));
+            });
+        }
 
-            try {
-                const response = await fetch('/.netlify/functions/scrape', {
-                    method: 'POST',
-                    body: JSON.stringify({ email, password })
-                });
+        // 2. Tab Switching Logic
+        function switchTab(tabId, headerTitle) {
+            // Update Header
+            document.getElementById('app-header').innerText = headerTitle;
 
-                const data = await response.json();
-                document.getElementById('loading').style.display = 'none';
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
 
-                if (data.success) {
-                    document.getElementById('results').style.display = 'block';
-                    const list = document.getElementById('timetable-list');
-                    list.innerHTML = ''; 
-                    
-                    if (data.data.length > 0) {
-                        // Loop through each Day (Monday, Tuesday, etc.)
-                        data.data.forEach(daySchedule => {
-                            
-                            // Create the Day Header
-                            const dayHeader = document.createElement('div');
-                            dayHeader.className = 'day-header';
-                            dayHeader.innerText = daySchedule.day;
-                            list.appendChild(dayHeader);
+            // Show selected tab
+            document.getElementById('tab-' + tabId).classList.add('active');
 
-                            // Create the timeline wrapper for this specific day
-                            const dayTimeline = document.createElement('div');
-                            dayTimeline.className = 'timetable';
-
-                            // Add the classes into this day's timeline
-                            daySchedule.classes.forEach(item => {
-                                const times = item.time.split('-');
-                                const start = times[0];
-                                const end = times[1] ? times[1] : '';
-                                const subject = item.rawText;
-
-                                const slot = document.createElement('div');
-                                slot.className = 'class-slot';
-                                slot.innerHTML = `
-                                    <div class="time-col">
-                                        <div class="time-start">${start}</div>
-                                        <div class="time-end">${end}</div>
-                                    </div>
-                                    <div class="info-col">
-                                        <div class="subject">${subject}</div>
-                                    </div>
-                                `;
-                                dayTimeline.appendChild(slot);
-                            });
-
-                            list.appendChild(dayTimeline);
-                        });
-                    } else {
-                        list.innerHTML = '<p style="color: #6b7280; margin-top: 20px;">No classes scheduled this week.</p>';
-                    }
-                } else {
-                    alert("Error: " + data.error);
-                    document.getElementById('form-section').style.display = 'block';
-                }
-            } catch (error) {
-                document.querySelector('.spinner').style.display = 'none';
-                const statusText = document.getElementById('status-text');
-                statusText.style.color = "#fa6969";
-                statusText.innerText = "Connection timed out. Arbor is responding slowly. Please refresh and try again.";
-                
-                setTimeout(() => {
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('form-section').style.display = 'block';
-                    document.querySelector('.spinner').style.display = 'block';
-                    statusText.style.color = "var(--text-muted)";
-                }, 3000);
-            }
-        });
+            // Update Nav visual state
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+        }
     </script>
 </body>
 </html>
