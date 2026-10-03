@@ -26,7 +26,7 @@ exports.handler = async (event, context) => {
         else req.continue();
     });
 
-    // 1. USE YOUR PROVEN WORKING LOGIN METHOD
+    // 1. USE THE PROVEN LOGIN BYPASS
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
     
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
@@ -47,31 +47,19 @@ exports.handler = async (event, context) => {
        return { statusCode: 401, body: JSON.stringify({ success: false, error: "Invalid email or password." }) };
     }
 
-    // 2. NOW FETCH THE HIGH-SPEED JSON DATA
-    const jsonUrl = 'https://carmel-college.uk.arbor.education/calendar-entry/list-static/format/json/';
-    await page.goto(jsonUrl, { waitUntil: 'domcontentloaded' });
+    // 2. GO TO THE VISUAL CALENDAR (We have 30 seconds, so plenty of time!)
+    await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'networkidle2' });
 
-    const rawData = await page.evaluate(() => document.body.innerText);
-    const parsedData = JSON.parse(rawData);
-
-    // SAFETY CHECK: Prevent the 'reading 0' crash if Arbor denies the JSON request
-    if (!parsedData || !parsedData.items || parsedData.items.length === 0) {
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: "Logged in, but Arbor blocked the data request." }) };
+    // Wait for the calendar class blocks to appear (up to 8 seconds)
+    try {
+        await page.waitForSelector('.mis-cal-event-time', { timeout: 8000 });
+    } catch (err) {
+        return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found on the calendar today.", data: [] }) };
     }
 
-    // 3. EXTRACT THE CLASSES
-    const pages = parsedData.items[0].fields.response.value.pages;
-    const currentWeekPage = pages.find(p => p.html !== undefined);
-
-    if (!currentWeekPage) {
-        return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found for this timeframe.", data: [] }) };
-    }
-
-    const timetableData = await page.evaluate((htmlString) => {
-        const div = document.createElement('div');
-        div.innerHTML = htmlString;
-        
-        const events = div.querySelectorAll('.mis-cal-event');
+    // 3. EXTRACT THE DATA
+    const timetableData = await page.evaluate(() => {
+        const events = document.querySelectorAll('.mis-cal-event');
         const classes = [];
 
         events.forEach(event => {
@@ -87,7 +75,7 @@ exports.handler = async (event, context) => {
         });
 
         return classes;
-    }, currentWeekPage.html);
+    });
 
     return {
       statusCode: 200,
