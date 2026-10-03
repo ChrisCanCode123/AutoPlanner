@@ -3,174 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AutoPlanner Sync</title>
+    <title>AutoPlanner Schedule</title>
     <style>
         :root {
             --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --bg: #f3f4f6;
+            --bg: #f9fafb;
             --card-bg: #ffffff;
-            --text-main: #1f2937;
+            --text-main: #111827;
             --text-muted: #6b7280;
+            --line-color: #e5e7eb;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 20px;
-        }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; justify-content: center; min-height: 100vh; padding: 20px; }
 
-        .container {
-            background: var(--card-bg);
-            width: 100%;
-            max-width: 400px;
-            padding: 30px 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            margin-top: 40px;
-        }
+        .container { width: 100%; max-width: 450px; margin-top: 20px; }
 
-        h1 {
-            font-size: 24px;
-            text-align: center;
-            margin-bottom: 8px;
-        }
-
-        p.subtitle {
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 24px;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        input {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 16px; /* Prevents iOS auto-zoom */
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: var(--primary-hover);
-        }
-
+        /* Form Styles */
+        .login-box { background: var(--card-bg); padding: 30px 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
+        h1 { font-size: 24px; text-align: center; margin-bottom: 8px; }
+        p.subtitle { text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+        input { width: 100%; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; outline: none; margin-bottom: 12px; }
+        button { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        
         /* Loading Screen */
-        #loading {
-            display: none;
-            text-align: center;
-            padding: 20px 0;
+        #loading { display: none; text-align: center; padding: 40px 0; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* Timetable Layout */
+        #results { display: none; }
+        .timetable { position: relative; padding-left: 20px; margin-top: 20px; }
+        
+        /* The vertical timeline line */
+        .timetable::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 27px;
+            width: 2px;
+            background-color: var(--line-color);
         }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #e5e7eb;
-            border-top: 4px solid var(--primary);
+        .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
+        
+        /* The timeline dot */
+        .class-slot::before {
+            content: '';
+            position: absolute;
+            left: 3px;
+            top: 6px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 16px auto;
+            background-color: var(--primary);
+            border: 3px solid var(--bg);
+            z-index: 1;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
+        .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
+        .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-        #status-text {
-            color: var(--text-muted);
-            font-size: 14px;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Results Screen */
-        #results {
-            display: none;
-        }
-
-        .success-banner {
-            background-color: #dcfce7;
-            color: #166534;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 20px;
-        }
-
-        .class-card {
-            background: #f9fafb;
-            border-left: 4px solid var(--primary);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-
-        .class-time {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 4px;
-        }
-
-        .class-details {
-            font-size: 15px;
-            font-weight: 500;
-            white-space: pre-wrap; /* Keeps line breaks from the raw text */
-        }
+        .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
+        .subject { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+        .room { font-size: 14px; color: var(--text-muted); font-weight: 500; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- Main Form -->
-        <div id="form-section">
+        <div id="form-section" class="login-box">
             <h1>AutoPlanner</h1>
-            <p class="subtitle">Sync your Arbor timetable instantly.</p>
-            
+            <p class="subtitle">Sync your timetable for today.</p>
             <form id="loginForm">
                 <input type="email" id="email" placeholder="Arbor Email" required>
                 <input type="password" id="password" placeholder="Arbor Password" required>
@@ -178,16 +85,14 @@
             </form>
         </div>
 
-        <!-- Loading State -->
         <div id="loading">
             <div class="spinner"></div>
-            <div id="status-text">Booting secure connection...</div>
+            <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
         </div>
 
-        <!-- Data Display State -->
         <div id="results">
-            <div class="success-banner" id="success-message">Sync Complete!</div>
-            <div id="timetable-list"></div>
+            <h2 style="margin-bottom: 5px; font-size: 20px;">Today's Classes</h2>
+            <div id="timetable-list" class="timetable"></div>
         </div>
     </div>
 
@@ -198,23 +103,9 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            const formSection = document.getElementById('form-section');
-            const loadingSection = document.getElementById('loading');
-            const resultsSection = document.getElementById('results');
-            const statusText = document.getElementById('status-text');
-            const timetableList = document.getElementById('timetable-list');
-            const successMessage = document.getElementById('success-message');
-
-            // Hide form, show loading
-            formSection.style.display = 'none';
-            loadingSection.style.display = 'block';
-            resultsSection.style.display = 'none';
-            timetableList.innerHTML = ''; // Clear old data
-
-            // Update status text every few seconds to keep the user engaged
-            setTimeout(() => statusText.innerText = "Logging into portal...", 2000);
-            setTimeout(() => statusText.innerText = "Extracting classes...", 5000);
-            setTimeout(() => statusText.innerText = "Almost done...", 8000);
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
 
             try {
                 const response = await fetch('/.netlify/functions/scrape', {
@@ -223,50 +114,47 @@
                 });
 
                 const data = await response.json();
-                
-                loadingSection.style.display = 'none';
+                document.getElementById('loading').style.display = 'none';
 
                 if (data.success) {
-                    resultsSection.style.display = 'block';
-                    successMessage.innerText = data.message;
+                    document.getElementById('results').style.display = 'block';
+                    const list = document.getElementById('timetable-list');
+                    list.innerHTML = ''; 
                     
-                    if (data.data && data.data.length > 0) {
-                        // Loop through the scraped data and create a card for each class
+                    if (data.data.length > 0) {
                         data.data.forEach(item => {
-                            const card = document.createElement('div');
-                            card.className = 'class-card';
-                            
-                            // Clean up the raw text by removing the time if it's duplicated in the rawText
-                            let cleanText = item.rawText.replace(item.time, '').trim();
-                            if(!cleanText) cleanText = "Unknown Subject";
+                            // Split the time into start and end for better styling
+                            const times = item.time.split('-');
+                            const start = times[0];
+                            const end = times[1] ? times[1] : '';
 
-                            card.innerHTML = `
-                                <div class="class-time">${item.time}</div>
-                                <div class="class-details">${cleanText}</div>
+                            // Parse Arbor's rawText (Usually formatted like "12A/Ph1a")
+                            const subject = item.rawText;
+
+                            const slot = document.createElement('div');
+                            slot.className = 'class-slot';
+                            slot.innerHTML = `
+                                <div class="time-col">
+                                    <div class="time-start">${start}</div>
+                                    <div class="time-end">${end}</div>
+                                </div>
+                                <div class="info-col">
+                                    <div class="subject">${subject}</div>
+                                </div>
                             `;
-                            timetableList.appendChild(card);
+                            list.appendChild(slot);
                         });
                     } else {
-                        timetableList.innerHTML = '<p style="text-align:center; color:#6b7280;">No classes found for today.</p>';
+                        list.innerHTML = '<p style="color: #6b7280; margin-top: 20px;">No classes scheduled.</p>';
                     }
                 } else {
-                    // Show error and bring form back
                     alert("Error: " + data.error);
-                    formSection.style.display = 'block';
+                    document.getElementById('form-section').style.display = 'block';
                 }
-                } catch (error) {
-                // Stop the spinner and show the error directly on the screen
-                document.querySelector('.spinner').style.display = 'none';
-                statusText.style.color = "#fa6969";
-                statusText.innerText = "Connection timed out. Arbor is responding slowly. Please refresh and try again.";
-                
-                // Bring the form back after 3 seconds
-                setTimeout(() => {
-                    loadingSection.style.display = 'none';
-                    formSection.style.display = 'block';
-                    document.querySelector('.spinner').style.display = 'block';
-                    statusText.style.color = "var(--text-muted)";
-                }, 3000);
+            } catch (error) {
+                alert("Connection failed. Please try again.");
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('form-section').style.display = 'block';
             }
         });
     </script>

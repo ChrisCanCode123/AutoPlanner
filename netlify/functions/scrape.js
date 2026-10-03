@@ -19,14 +19,12 @@ exports.handler = async (event, context) => {
 
     const page = await browser.newPage();
     
-    // Speed Boost: Block images and CSS
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) req.abort();
         else req.continue();
     });
 
-    // 1. USE THE PROVEN LOGIN BYPASS
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
     
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
@@ -39,7 +37,6 @@ exports.handler = async (event, context) => {
 
     await page.keyboard.press('Enter');
     
-    // Wait for Arbor to fully authenticate and redirect to Carmel College
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
     const currentUrl = page.url();
@@ -47,34 +44,47 @@ exports.handler = async (event, context) => {
        return { statusCode: 401, body: JSON.stringify({ success: false, error: "Invalid email or password." }) };
     }
 
-    // 2. GO TO THE VISUAL CALENDAR (We have 30 seconds, so plenty of time!)
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'networkidle2' });
 
-    // Wait for the calendar class blocks to appear (up to 8 seconds)
     try {
         await page.waitForSelector('.mis-cal-event-time', { timeout: 8000 });
     } catch (err) {
         return { statusCode: 200, body: JSON.stringify({ success: true, message: "No classes found on the calendar today.", data: [] }) };
     }
 
-    // 3. EXTRACT THE DATA
     const timetableData = await page.evaluate(() => {
         const events = document.querySelectorAll('.mis-cal-event');
         const classes = [];
+        const seen = new Set(); // Prevent duplicates
 
         events.forEach(event => {
             const timeEl = event.querySelector('.mis-cal-event-time');
             const titleEl = event.querySelector('.title');
             
             if (timeEl && titleEl) {
-                classes.push({
-                    time: timeEl.innerText.trim(),
-                    rawText: titleEl.innerText.trim()
-                });
+                const timeString = timeEl.innerText.trim();
+                const rawText = titleEl.innerText.trim();
+                
+                // FILTER: Split "14:02-14:02" into two halves. If they match, skip it.
+                const times = timeString.split('-');
+                if (times.length === 2 && times[0] === times[1]) {
+                    return; 
+                }
+
+                // Create a unique ID to prevent double-counting the same class
+                const uniqueId = timeString + rawText;
+                if (!seen.has(uniqueId)) {
+                    seen.add(uniqueId);
+                    classes.push({
+                        time: timeString,
+                        rawText: rawText
+                    });
+                }
             }
         });
 
-        return classes;
+        // Sort chronologically
+        return classes.sort((a, b) => a.time.localeCompare(b.time));
     });
 
     return {
