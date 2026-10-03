@@ -1,111 +1,274 @@
-const puppeteer = require('puppeteer-core');
-
-exports.handler = async (event, context) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: "Method Not Allowed" };
-
-  let browser = null;
-  
-  try {
-    const { email, password } = JSON.parse(event.body);
-    if (!email || !password) return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
-
-    const chromium = (await import('@sparticuz/chromium')).default;
-
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-    });
-
-    const page = await browser.newPage();
-    
-    // Block heavy files to speed up the boot sequence
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-        if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
-            req.abort();
-        } else {
-            req.continue();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AutoPlanner Sync</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
         }
-    });
 
-    // 1. Log into Arbor normally
-    await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
-    
-    const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
-    await page.waitForSelector(emailSelector);
-    await page.type(emailSelector, email);
-    
-    const passwordSelector = 'input[type="password"]';
-    await page.waitForSelector(passwordSelector);
-    await page.type(passwordSelector, password);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-    await page.keyboard.press('Enter');
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-    // Wait just a moment for the login to process
-    await new Promise(resolve => setTimeout(resolve, 2000));
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            padding: 30px 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-top: 40px;
+        }
 
-    // 2. The Speed Hack: Go directly to the hidden JSON data URL
-    const jsonUrl = 'https://carmel-college.uk.arbor.education/calendar-entry/list-static/format/json/';
-    await page.goto(jsonUrl, { waitUntil: 'domcontentloaded' });
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
 
-    // 3. Extract the raw JSON text from the screen
-    const rawData = await page.evaluate(() => document.body.innerText);
-    const parsedData = JSON.parse(rawData);
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
 
-    // 4. Dig through the JSON to find the block of HTML containing the classes
-    const pages = parsedData.items[0].fields.response.value.pages;
-    
-    // Find the current week's page (the one that actually has HTML data in it)
-    const currentWeekPage = pages.find(page => page.html !== undefined);
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
 
-    if (!currentWeekPage) {
-         return {
-            statusCode: 200,
-            body: JSON.stringify({ 
-                success: true, 
-                message: "Sync complete! No classes found for this timeframe.", 
-                data: [] 
-            }),
-        };
-    }
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px; /* Prevents iOS auto-zoom */
+            outline: none;
+            transition: border-color 0.2s;
+        }
 
-    // 5. Create a temporary invisible container inside the browser to parse that raw HTML
-    const timetableData = await page.evaluate((htmlString) => {
-        const div = document.createElement('div');
-        div.innerHTML = htmlString;
-        
-        const events = div.querySelectorAll('.mis-cal-event');
-        const classes = [];
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
 
-        events.forEach(event => {
-            const timeEl = event.querySelector('.mis-cal-event-time');
-            const titleEl = event.querySelector('.title');
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        /* Loading Screen */
+        #loading {
+            display: none;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #status-text {
+            color: var(--text-muted);
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Results Screen */
+        #results {
+            display: none;
+        }
+
+        .success-banner {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .class-card {
+            background: #f9fafb;
+            border-left: 4px solid var(--primary);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .class-time {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .class-details {
+            font-size: 15px;
+            font-weight: 500;
+            white-space: pre-wrap; /* Keeps line breaks from the raw text */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Main Form -->
+        <div id="form-section">
+            <h1>AutoPlanner</h1>
+            <p class="subtitle">Sync your Arbor timetable instantly.</p>
             
-            if (timeEl && titleEl) {
-                classes.push({
-                    time: timeEl.innerText.trim(),
-                    rawText: titleEl.innerText.trim()
+            <form id="loginForm">
+                <input type="email" id="email" placeholder="Arbor Email" required>
+                <input type="password" id="password" placeholder="Arbor Password" required>
+                <button type="submit">Sync Timetable</button>
+            </form>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading">
+            <div class="spinner"></div>
+            <div id="status-text">Booting secure connection...</div>
+        </div>
+
+        <!-- Data Display State -->
+        <div id="results">
+            <div class="success-banner" id="success-message">Sync Complete!</div>
+            <div id="timetable-list"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const formSection = document.getElementById('form-section');
+            const loadingSection = document.getElementById('loading');
+            const resultsSection = document.getElementById('results');
+            const statusText = document.getElementById('status-text');
+            const timetableList = document.getElementById('timetable-list');
+            const successMessage = document.getElementById('success-message');
+
+            // Hide form, show loading
+            formSection.style.display = 'none';
+            loadingSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            timetableList.innerHTML = ''; // Clear old data
+
+            // Update status text every few seconds to keep the user engaged
+            setTimeout(() => statusText.innerText = "Logging into portal...", 2000);
+            setTimeout(() => statusText.innerText = "Extracting classes...", 5000);
+            setTimeout(() => statusText.innerText = "Almost done...", 8000);
+
+            try {
+                const response = await fetch('/.netlify/functions/scrape', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
                 });
+
+                const data = await response.json();
+                
+                loadingSection.style.display = 'none';
+
+                if (data.success) {
+                    resultsSection.style.display = 'block';
+                    successMessage.innerText = data.message;
+                    
+                    if (data.data && data.data.length > 0) {
+                        // Loop through the scraped data and create a card for each class
+                        data.data.forEach(item => {
+                            const card = document.createElement('div');
+                            card.className = 'class-card';
+                            
+                            // Clean up the raw text by removing the time if it's duplicated in the rawText
+                            let cleanText = item.rawText.replace(item.time, '').trim();
+                            if(!cleanText) cleanText = "Unknown Subject";
+
+                            card.innerHTML = `
+                                <div class="class-time">${item.time}</div>
+                                <div class="class-details">${cleanText}</div>
+                            `;
+                            timetableList.appendChild(card);
+                        });
+                    } else {
+                        timetableList.innerHTML = '<p style="text-align:center; color:#6b7280;">No classes found for today.</p>';
+                    }
+                } else {
+                    // Show error and bring form back
+                    alert("Error: " + data.error);
+                    formSection.style.display = 'block';
+                }
+                } catch (error) {
+                // Stop the spinner and show the error directly on the screen
+                document.querySelector('.spinner').style.display = 'none';
+                statusText.style.color = "#fa6969";
+                statusText.innerText = "Connection timed out. Arbor is responding slowly. Please refresh and try again.";
+                
+                // Bring the form back after 3 seconds
+                setTimeout(() => {
+                    loadingSection.style.display = 'none';
+                    formSection.style.display = 'block';
+                    document.querySelector('.spinner').style.display = 'block';
+                    statusText.style.color = "var(--text-muted)";
+                }, 3000);
             }
         });
-
-        return classes;
-    }, currentWeekPage.html);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        success: true, 
-        message: `Successfully synced ${timetableData.length} classes!`, 
-        data: timetableData 
-      }),
-    };
-
-  } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: "Failed to connect to Arbor. " + error.message }) };
-  } finally {
-    if (browser !== null) { await browser.close(); }
-  }
-};
+    </script>
+</body>
+</html>

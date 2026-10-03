@@ -20,6 +20,7 @@ exports.handler = async (event, context) => {
 
     const page = await browser.newPage();
     
+    // Block heavy files to speed up the boot sequence
     await page.setRequestInterception(true);
     page.on('request', (req) => {
         if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
@@ -29,6 +30,7 @@ exports.handler = async (event, context) => {
         }
     });
 
+    // 1. Log into Arbor normally
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
     
     const emailSelector = 'input[type="text"], input[type="email"], input[name="username"]';
@@ -41,23 +43,25 @@ exports.handler = async (event, context) => {
 
     await page.keyboard.press('Enter');
 
-    // STRICT TIMEOUT 1: Only wait 3 seconds for the dashboard
-    await page.waitForSelector('.mis-calendar-segmeted-button-container', { timeout: 3000 });
+    // Wait just a moment for the login to process
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    await page.evaluate(() => {
-        const spans = Array.from(document.querySelectorAll('span.x-btn-inner'));
-        const weekBtn = spans.find(span => span.innerText.includes('5 Days'));
-        if (weekBtn) weekBtn.click();
-    });
+    // 2. The Speed Hack: Go directly to the hidden JSON data URL
+    const jsonUrl = 'https://carmel-college.uk.arbor.education/calendar-entry/list-static/format/json/';
+    await page.goto(jsonUrl, { waitUntil: 'domcontentloaded' });
 
-    // STRICT TIMEOUT 2: Only give Arbor 1 second to load the week's data
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // 3. Extract the raw JSON text from the screen
+    const rawData = await page.evaluate(() => document.body.innerText);
+    const parsedData = JSON.parse(rawData);
 
-    try {
-        // STRICT TIMEOUT 3: Only wait 2 seconds to see if classes appeared
-        await page.waitForSelector('.mis-cal-event-time', { timeout: 2000 });
-    } catch (err) {
-        return {
+    // 4. Dig through the JSON to find the block of HTML containing the classes
+    const pages = parsedData.items[0].fields.response.value.pages;
+    
+    // Find the current week's page (the one that actually has HTML data in it)
+    const currentWeekPage = pages.find(page => page.html !== undefined);
+
+    if (!currentWeekPage) {
+         return {
             statusCode: 200,
             body: JSON.stringify({ 
                 success: true, 
@@ -67,20 +71,28 @@ exports.handler = async (event, context) => {
         };
     }
 
-    const timetableData = await page.evaluate(() => {
-        const timeBlocks = document.querySelectorAll('.mis-cal-event-time');
+    // 5. Create a temporary invisible container inside the browser to parse that raw HTML
+    const timetableData = await page.evaluate((htmlString) => {
+        const div = document.createElement('div');
+        div.innerHTML = htmlString;
+        
+        const events = div.querySelectorAll('.mis-cal-event');
         const classes = [];
 
-        timeBlocks.forEach(timeBlock => {
-            const parent = timeBlock.parentElement;
-            classes.push({
-                time: timeBlock.innerText.trim(),
-                rawText: parent ? parent.innerText.trim() : 'No extra data'
-            });
+        events.forEach(event => {
+            const timeEl = event.querySelector('.mis-cal-event-time');
+            const titleEl = event.querySelector('.title');
+            
+            if (timeEl && titleEl) {
+                classes.push({
+                    time: timeEl.innerText.trim(),
+                    rawText: titleEl.innerText.trim()
+                });
+            }
         });
 
         return classes;
-    });
+    }, currentWeekPage.html);
 
     return {
       statusCode: 200,
@@ -92,7 +104,7 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: "Server timeout or login failed. Try again." }) };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: "Failed to connect to Arbor. " + error.message }) };
   } finally {
     if (browser !== null) { await browser.close(); }
   }
