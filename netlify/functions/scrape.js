@@ -41,27 +41,27 @@ exports.handler = async (event, context) => {
 
     await page.keyboard.press('Enter');
 
-    // Wait for the main dashboard/calendar skeleton to load
-    await page.waitForSelector('.mis-calendar-segmeted-button-container', { timeout: 8000 });
+    // STRICT TIMEOUT 1: Only wait 3 seconds for the dashboard
+    await page.waitForSelector('.mis-calendar-segmeted-button-container', { timeout: 3000 });
 
-    // NEW: Find and click the "5 Days" button to reveal the whole week
     await page.evaluate(() => {
         const spans = Array.from(document.querySelectorAll('span.x-btn-inner'));
         const weekBtn = spans.find(span => span.innerText.includes('5 Days'));
         if (weekBtn) weekBtn.click();
     });
 
-    // Wait 1.5 seconds for the week's classes to visually populate on the screen
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // STRICT TIMEOUT 2: Only give Arbor 1 second to load the week's data
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
-        await page.waitForSelector('.mis-cal-event-time', { timeout: 4000 });
+        // STRICT TIMEOUT 3: Only wait 2 seconds to see if classes appeared
+        await page.waitForSelector('.mis-cal-event-time', { timeout: 2000 });
     } catch (err) {
         return {
             statusCode: 200,
             body: JSON.stringify({ 
                 success: true, 
-                message: "Sync complete! No classes scheduled for this week.", 
+                message: "Sync complete! No classes found for this timeframe.", 
                 data: [] 
             }),
         };
@@ -86,13 +86,13 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       body: JSON.stringify({ 
         success: true, 
-        message: `Successfully synced ${timetableData.length} classes for the week!`, 
+        message: `Successfully synced ${timetableData.length} classes!`, 
         data: timetableData 
       }),
     };
 
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: "Server timeout or login failed. Try again." }) };
   } finally {
     if (browser !== null) { await browser.close(); }
   }

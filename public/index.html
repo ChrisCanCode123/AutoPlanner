@@ -254,10 +254,19 @@
                     alert("Error: " + data.error);
                     formSection.style.display = 'block';
                 }
-            } catch (error) {
-                loadingSection.style.display = 'none';
-                formSection.style.display = 'block';
-                alert("Failed to connect to the server. Please try again.");
+                } catch (error) {
+                // Stop the spinner and show the error directly on the screen
+                document.querySelector('.spinner').style.display = 'none';
+                statusText.style.color = "#fa6969";
+                statusText.innerText = "Connection timed out. Arbor is responding slowly. Please refresh and try again.";
+                
+                // Bring the form back after 3 seconds
+                setTimeout(() => {
+                    loadingSection.style.display = 'none';
+                    formSection.style.display = 'block';
+                    document.querySelector('.spinner').style.display = 'block';
+                    statusText.style.color = "var(--text-muted)";
+                }, 3000);
             }
         });
     </script>
