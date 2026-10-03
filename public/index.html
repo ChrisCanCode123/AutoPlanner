@@ -190,10 +190,17 @@
         // --- SECURITY ---
         function checkAccess() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            
             if (isStandalone) {
-                document.getElementById('auth-message').style.display = 'none';
-                document.getElementById('auth-prompt').style.display = 'block';
+                // Opened via App -> Check if previously unlocked
+                if (localStorage.getItem('appUnlocked') === 'true') {
+                    unlockApp();
+                } else {
+                    document.getElementById('auth-message').style.display = 'none';
+                    document.getElementById('auth-prompt').style.display = 'block';
+                }
             } else {
+                // Opened via Browser -> Check URL
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('pin') === '5566') {
                     const msg = document.getElementById('auth-message');
@@ -206,19 +213,26 @@
                 }
             }
         }
+
         function checkAppPin() {
-            if (document.getElementById('app-pin-input').value === '7788') unlockApp();
-            else document.getElementById('auth-error').style.display = 'block';
+            if (document.getElementById('app-pin-input').value === '7788') {
+                localStorage.setItem('appUnlocked', 'true');
+                unlockApp();
+            } else {
+                document.getElementById('auth-error').style.display = 'block';
+            }
         }
+
         function unlockApp() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
         }
+        
         checkAccess();
 
         // --- GLOBAL CLEAR DATA ---
         function clearAllData() {
-            if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again.")) {
+            if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again. This will also require you to re-enter the app PIN.")) {
                 localStorage.clear();
                 const req = indexedDB.deleteDatabase("AutoPlannerDB");
                 req.onsuccess = () => location.reload();
