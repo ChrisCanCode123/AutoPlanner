@@ -1,4 +1,4 @@
-const CACHE_NAME = 'autoplanner-v1';
+const CACHE_NAME = 'autoplanner-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -16,10 +16,12 @@ self.addEventListener('install', event => {
 
 // Fetch event: Serve from network first, fall back to cache if offline
 self.addEventListener('fetch', event => {
-  // Only cache GET requests (we don't cache the POST request to the Arbor scraper)
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request).catch(() => {
+      // ignoreSearch: true tells the cache to ignore "?pin=5566" and just load the app
+      return caches.match(event.request, { ignoreSearch: true });
+    })
   );
 });
