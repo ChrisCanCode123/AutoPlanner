@@ -7,42 +7,18 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <style>
-        :root {
-            --primary: #4f46e5;
-            --bg: #f9fafb;
-            --card-bg: #ffffff;
-            --text-main: #111827;
-            --text-muted: #6b7280;
-            --line-color: #e5e7eb;
-            --success: #10b981;
-        }
-
-        body.dark-mode {
-            --bg: #111827;
-            --card-bg: #1f2937;
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
-            --line-color: #374151;
-            --success: #059669;
-        }
-
+        :root { --primary: #4f46e5; --bg: #f9fafb; --card-bg: #ffffff; --text-main: #111827; --text-muted: #6b7280; --line-color: #e5e7eb; --success: #10b981; }
+        body.dark-mode { --bg: #111827; --card-bg: #1f2937; --text-main: #f9fafb; --text-muted: #9ca3af; --line-color: #374151; --success: #059669; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background-color 0.3s, color 0.3s; }
-
         body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        /* Security Screen */
+        
         #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; }
         #app-container { display: none; flex-direction: column; height: 100%; width: 100%; }
-
         header { background-color: var(--card-bg); padding: 16px 20px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--line-color); display: flex; justify-content: space-between; align-items: center; }
-        
         .header-actions button { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-main); margin-left: 15px; }
-
         main { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
-
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
         nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--card-bg); border-top: 1px solid var(--line-color); display: flex; justify-content: space-around; padding: 12px 0; padding-bottom: env(safe-area-inset-bottom, 12px); z-index: 100; }
         .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); background: none; border: none; font-size: 12px; font-weight: 500; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
@@ -51,14 +27,12 @@
 
         input, select, textarea { width: 100%; padding: 14px; background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color); border-radius: 8px; font-size: 16px; margin-bottom: 12px; font-family: inherit; }
         button.btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        
         .box { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--line-color); }
         
         #loading { display: none; text-align: center; padding: 40px 0; }
         .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* Timetable UI */
         .view-toggles { display: none; gap: 10px; margin-bottom: 20px; }
         .toggle-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; cursor: pointer; text-align: center; }
         .toggle-btn.active-toggle { background: var(--primary); color: white; }
@@ -68,12 +42,9 @@
         .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 27px; width: 2px; background-color: var(--line-color); }
         .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
         .class-slot::before { content: ''; position: absolute; left: 3px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--primary); border: 3px solid var(--bg); z-index: 1; }
-        
-        /* Free Period styling */
         .class-slot.free-period .info-col { background: transparent; border: 2px dashed var(--line-color); box-shadow: none; display: flex; align-items: center; padding: 12px 16px;}
         .class-slot.free-period::before { background-color: var(--line-color); }
         .class-slot.free-period .subject { color: var(--text-muted); font-weight: 500; font-style: italic; }
-
         .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
         .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
         .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
@@ -85,9 +56,14 @@
         .hw-due { font-size: 12px; font-weight: 600; color: #ef4444; background: #fee2e2; padding: 4px 8px; border-radius: 4px; }
         body.dark-mode .hw-due { background: #7f1d1d; color: #fca5a5; }
         .hw-desc { font-size: 14px; color: var(--text-main); white-space: pre-wrap; }
-        .hw-img { width: 100%; border-radius: 8px; margin-top: 8px; max-height: 200px; object-fit: cover; }
+        
+        /* Interactive Image Preview */
+        .hw-img { width: 100px; height: 100px; border-radius: 8px; margin-top: 8px; object-fit: cover; cursor: pointer; transition: all 0.2s ease-in-out; border: 1px solid var(--line-color); }
+        .hw-img.expanded { width: 100%; height: auto; max-height: 400px; object-fit: contain; }
+        
         .hw-actions { display: flex; gap: 10px; margin-top: 10px; }
         .btn-complete { background: var(--success); flex: 1; padding: 10px; border-radius: 6px; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-hard-delete { background: #ef4444; padding: 10px 15px; border-radius: 6px; color: white; border: none; font-weight: bold; cursor: pointer; }
         
         .history-header { margin-top: 30px; font-size: 18px; color: var(--text-muted); border-bottom: 1px solid var(--line-color); padding-bottom: 5px; margin-bottom: 15px; }
         .hw-card.completed { opacity: 0.7; border-color: var(--success); }
@@ -97,7 +73,6 @@
 </head>
 <body>
 
-    <!-- SECURITY OVERLAY -->
     <div id="auth-screen">
         <div id="auth-message" style="font-size: 18px; font-weight: 600; line-height: 1.5;">Verifying Access...</div>
         <div id="auth-prompt" class="box" style="display: none; width: 100%; max-width: 350px;">
@@ -109,7 +84,6 @@
         </div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
     <div id="app-container">
         <header>
             <span id="app-header-title">Dashboard</span>
@@ -137,9 +111,16 @@
                         <select id="hw-subject" required>
                             <option value="">Select Subject...</option>
                         </select>
-                        <div id="due-date-preview" style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; font-weight: 500;">
+                        <div id="due-date-preview" style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px; font-weight: 500;">
                             Due: Select a subject first
                         </div>
+                        
+                        <!-- Custom Date Override -->
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Or pick custom due date:</label>
+                            <input type="date" id="custom-due-date" style="margin-bottom: 0;">
+                        </div>
+
                         <textarea id="hw-desc" placeholder="What's the homework?" rows="3" required></textarea>
                         <label style="display: block; margin-bottom: 5px; font-size: 14px; color: var(--text-muted);">Attach Photo (Optional)</label>
                         <input type="file" id="hw-image" accept="image/*">
@@ -158,140 +139,79 @@
                         <button type="submit" class="btn">Download Timetable</button>
                     </form>
                 </div>
-
-                <div id="loading">
-                    <div class="spinner"></div>
-                    <div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div>
-                </div>
-
+                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div></div>
                 <div id="timetable-controls" class="view-toggles">
                     <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
                     <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Full Week</button>
                 </div>
-
                 <div id="timetable-list"></div>
             </div>
         </main>
 
         <nav>
-            <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')">
-                <div class="nav-icon"></div>Tasks
-            </button>
-            <button class="nav-item" onclick="switchTab('add', 'Add Homework')">
-                <div class="nav-icon"></div>Add
-            </button>
-            <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')">
-                <div class="nav-icon"></div>Timetable
-            </button>
+            <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')"><div class="nav-icon"></div>Tasks</button>
+            <button class="nav-item" onclick="switchTab('add', 'Add Homework')"><div class="nav-icon"></div>Add</button>
+            <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')"><div class="nav-icon"></div>Timetable</button>
         </nav>
     </div>
 
     <script>
-// --- SECURITY ---
         function checkAccess() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-            
             if (isStandalone) {
-                // Check if the app was already unlocked previously
-                if (localStorage.getItem('appUnlocked') === 'true') {
-                    unlockApp();
-                } else {
-                    // First time opening as an app, ask for PIN
-                    document.getElementById('auth-message').style.display = 'none';
-                    document.getElementById('auth-prompt').style.display = 'block';
-                }
+                if (localStorage.getItem('appUnlocked') === 'true') unlockApp();
+                else { document.getElementById('auth-message').style.display = 'none'; document.getElementById('auth-prompt').style.display = 'block'; }
             } else {
-                // Opened via Browser -> Check URL
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('pin') === '5566') {
                     const msg = document.getElementById('auth-message');
                     msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted);'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
                     msg.style.color = "var(--text-main)";
-                } else {
-                    const msg = document.getElementById('auth-message');
-                    msg.innerText = "Access Denied.";
-                    msg.style.color = "#ef4444";
-                }
+                } else { document.getElementById('auth-message').innerText = "Access Denied."; document.getElementById('auth-message').style.color = "#ef4444"; }
             }
         }
-
         function checkAppPin() {
-            if (document.getElementById('app-pin-input').value === '7788') {
-                // Save the unlocked state permanently so it never asks again
-                localStorage.setItem('appUnlocked', 'true');
-                unlockApp();
-            } else {
-                document.getElementById('auth-error').style.display = 'block';
-            }
+            if (document.getElementById('app-pin-input').value === '7788') { localStorage.setItem('appUnlocked', 'true'); unlockApp(); }
+            else document.getElementById('auth-error').style.display = 'block';
         }
-
-        function unlockApp() {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('app-container').style.display = 'flex';
-        }
-        
+        function unlockApp() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; }
         checkAccess();
-        
-        // --- GLOBAL CLEAR DATA ---
+
         function clearAllData() {
-            if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again. This will also require you to re-enter the app PIN.")) {
+            if (confirm("Are you sure you want to delete all saved homework and timetable data? You will need to sync again.")) {
                 localStorage.clear();
                 const req = indexedDB.deleteDatabase("AutoPlannerDB");
                 req.onsuccess = () => location.reload();
             }
         }
 
-        // --- DARK MODE ---
         const themeToggle = document.getElementById('theme-toggle');
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-            themeToggle.innerText = '☀️';
-        }
+        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); themeToggle.innerText = '☀️'; }
         themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('theme', 'dark');
-                themeToggle.innerText = '☀️';
-            } else {
-                localStorage.setItem('theme', 'light');
-                themeToggle.innerText = '🌙';
-            }
+            if (document.body.classList.contains('dark-mode')) { localStorage.setItem('theme', 'dark'); themeToggle.innerText = '☀️'; } 
+            else { localStorage.setItem('theme', 'light'); themeToggle.innerText = '🌙'; }
         });
 
-        // --- INDEXED DB ---
         let db;
         const request = indexedDB.open("AutoPlannerDB", 2); 
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" });
-        };
+        request.onupgradeneeded = (e) => { db = e.target.result; if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); };
         request.onsuccess = (e) => { db = e.target.result; renderHomework(); };
 
-        // --- TABS ---
         function switchTab(tabId, headerTitle) {
             document.getElementById('app-header-title').innerText = headerTitle;
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.getElementById('tab-' + tabId).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
             event.currentTarget.classList.add('active');
-
             if(tabId === 'add') populateAddForm();
             if(tabId === 'dashboard') renderHomework();
             if(tabId === 'timetable') renderTimetable('today');
         }
 
-        // --- TIME UTILS ---
-        const parseTime = (timeStr) => {
-            const [h, m] = timeStr.split(':').map(Number);
-            return h * 60 + m;
-        };
-        const formatTime = (mins) => {
-            const h = Math.floor(mins / 60).toString().padStart(2, '0');
-            const m = (mins % 60).toString().padStart(2, '0');
-            return `${h}:${m}`;
-        };
+        const parseTime = (timeStr) => { const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; };
+        const formatTime = (mins) => { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; };
 
-        // --- TIMETABLE RENDERER (Filters, Frees & Staff) ---
         function renderTimetable(viewType = 'today') {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const list = document.getElementById('timetable-list');
@@ -300,153 +220,85 @@
             document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
             document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
 
-            if (schedule.length === 0) {
-                document.getElementById('form-section').style.display = 'block';
-                document.getElementById('timetable-controls').style.display = 'none';
-                return;
-            }
-
-            document.getElementById('form-section').style.display = 'none';
-            document.getElementById('timetable-controls').style.display = 'flex';
+            if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; return; }
+            document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex';
 
             let daysToRender = schedule;
-            
             if (viewType === 'today') {
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 let dayNum = new Date().getDay();
-                if (dayNum === 0 || dayNum === 6) dayNum = 1; // Default weekend to Monday
-                
+                if (dayNum === 0 || dayNum === 6) dayNum = 1; 
                 daysToRender = schedule.filter(d => d.day.includes(days[dayNum]));
                 if (daysToRender.length === 0) daysToRender = [schedule[0]]; 
             }
 
             daysToRender.forEach(daySchedule => {
-                const dayHeader = document.createElement('div');
-                dayHeader.className = 'day-header';
-                dayHeader.innerText = daySchedule.day;
-                list.appendChild(dayHeader);
+                const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; dayHeader.innerText = daySchedule.day; list.appendChild(dayHeader);
+                const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
 
-                const dayTimeline = document.createElement('div');
-                dayTimeline.className = 'timetable';
-
-                let realClasses = daySchedule.classes.filter(c => {
-                    const end = parseTime(c.time.split('-')[1] || "23:59");
-                    return end > 550; // Filter before 09:10
-                });
-
-                const dayStartMins = 550; 
-                const dayEndMins = 924;   
-                let currentMins = dayStartMins;
-
+                let realClasses = daySchedule.classes.filter(c => { const end = parseTime(c.time.split('-')[1] || "23:59"); return end > 550; });
+                const dayStartMins = 550; const dayEndMins = 924; let currentMins = dayStartMins;
                 const slotsToRender = [];
 
                 realClasses.forEach(cls => {
-                    const [startStr, endStr] = cls.time.split('-');
-                    const startMins = parseTime(startStr);
-                    const endMins = parseTime(endStr);
-
+                    const [startStr, endStr] = cls.time.split('-'); const startMins = parseTime(startStr); const endMins = parseTime(endStr);
                     if (startMins - currentMins >= 45) {
                         const isLunch = (currentMins >= 740 && startMins <= 815); 
-                        if (!isLunch) {
-                            slotsToRender.push({
-                                isFree: true,
-                                time: `${formatTime(currentMins)} - ${startStr}`,
-                                rawText: "Free Period"
-                            });
-                        }
+                        if (!isLunch) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - ${startStr}`, rawText: "Free Period" });
                     }
-
-                    slotsToRender.push({ 
-                        isFree: false, 
-                        time: cls.time, 
-                        rawText: cls.rawText,
-                        teacher: cls.teacher,
-                        room: cls.room
-                    });
+                    slotsToRender.push({ isFree: false, time: cls.time, rawText: cls.rawText, teacher: cls.teacher, room: cls.room });
                     currentMins = endMins;
                 });
-
-                if (dayEndMins - currentMins >= 45) {
-                    slotsToRender.push({
-                        isFree: true,
-                        time: `${formatTime(currentMins)} - 15:24`,
-                        rawText: "Free Period"
-                    });
-                }
+                if (dayEndMins - currentMins >= 45) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - 15:24`, rawText: "Free Period" });
 
                 slotsToRender.forEach(slotData => {
                     const [start, end] = slotData.time.split('-');
                     const slot = document.createElement('div');
                     slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
-                    
                     let metaHTML = '';
                     if (!slotData.isFree && (slotData.teacher || slotData.room)) {
-                        let metaParts = [];
-                        if (slotData.teacher) metaParts.push(slotData.teacher);
-                        if (slotData.room) metaParts.push(slotData.room);
-                        
-                        metaHTML = `<div style="font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500;">
-                            ${metaParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}
-                        </div>`;
+                        let metaParts = []; if (slotData.teacher) metaParts.push(slotData.teacher); if (slotData.room) metaParts.push(slotData.room);
+                        metaHTML = `<div style="font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500;">${metaParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}</div>`;
                     }
-
-                    slot.innerHTML = `
-                        <div class="time-col">
-                            <div class="time-start">${start.trim()}</div>
-                            <div class="time-end">${end ? end.trim() : ''}</div>
-                        </div>
-                        <div class="info-col">
-                            <div class="subject">${slotData.rawText}</div>
-                            ${metaHTML}
-                        </div>
-                    `;
+                    slot.innerHTML = `<div class="time-col"><div class="time-start">${start.trim()}</div><div class="time-end">${end ? end.trim() : ''}</div></div><div class="info-col"><div class="subject">${slotData.rawText}</div>${metaHTML}</div>`;
                     dayTimeline.appendChild(slot);
                 });
-
                 list.appendChild(dayTimeline);
             });
         }
 
-        // --- ARBOR SCRAPER ---
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            document.getElementById('form-section').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
-
+            e.preventDefault(); document.getElementById('form-section').style.display = 'none'; document.getElementById('loading').style.display = 'block';
             try {
-                const response = await fetch('/.netlify/functions/scrape', {
-                    method: 'POST',
-                    body: JSON.stringify({ 
-                        email: document.getElementById('email').value, 
-                        password: document.getElementById('password').value 
-                    })
-                });
-
-                const data = await response.json();
-                document.getElementById('loading').style.display = 'none';
-
-                if (data.success) {
-                    localStorage.setItem('schedule', JSON.stringify(data.data));
-                    renderTimetable('today');
-                } else {
-                    alert("Error: " + data.error);
-                    document.getElementById('form-section').style.display = 'block';
-                }
-            } catch (error) {
-                alert("Connection failed.");
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('form-section').style.display = 'block';
-            }
+                const response = await fetch('/.netlify/functions/scrape', { method: 'POST', body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }) });
+                const data = await response.json(); document.getElementById('loading').style.display = 'none';
+                if (data.success) { localStorage.setItem('schedule', JSON.stringify(data.data)); renderTimetable('today'); } 
+                else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
+            } catch (error) { alert("Connection failed."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; }
         });
 
-        // --- AUTO ADD FORM LOGIC ---
         function populateAddForm() {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const select = document.getElementById('hw-subject');
             select.innerHTML = '<option value="">Select Subject...</option>';
+            document.getElementById('custom-due-date').value = '';
             
-            const subjects = [...new Set(schedule.flatMap(d => d.classes.map(c => c.rawText)))];
-            subjects.forEach(sub => select.innerHTML += `<option value="${sub}">${sub}</option>`);
+            // Extract unique subject + teacher pairings
+            const classTypes = [];
+            schedule.forEach(d => {
+                d.classes.forEach(c => {
+                    if (c.isFree) return;
+                    const key = c.rawText + '|' + (c.teacher || '');
+                    if (!classTypes.find(ct => ct.key === key)) {
+                        classTypes.push({ key, subject: c.rawText, teacher: c.teacher || '' });
+                    }
+                });
+            });
+
+            classTypes.forEach(ct => {
+                const label = ct.teacher ? `${ct.subject} (${ct.teacher})` : ct.subject;
+                select.innerHTML += `<option value="${ct.key}">${label}</option>`;
+            });
 
             const now = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -454,24 +306,24 @@
             const currentMins = now.getHours() * 60 + now.getMinutes();
 
             const todaySchedule = schedule.find(d => d.day.includes(todayName));
-            let currentClass = null;
+            let currentClassKey = null;
+            let currentSubjectName = null;
 
             if (todaySchedule) {
                 for (let cls of todaySchedule.classes) {
                     const times = cls.time.split('-');
-                    if (times.length === 2) {
-                        if (currentMins >= parseTime(times[0]) && currentMins <= parseTime(times[1])) {
-                            currentClass = cls.rawText;
-                            break;
-                        }
+                    if (times.length === 2 && currentMins >= parseTime(times[0]) && currentMins <= parseTime(times[1])) {
+                        currentClassKey = cls.rawText + '|' + (cls.teacher || '');
+                        currentSubjectName = cls.rawText;
+                        break;
                     }
                 }
             }
 
-            if (currentClass) {
-                document.getElementById('context-msg').innerText = `You are in ${currentClass}`;
-                select.value = currentClass;
-                calculateNextLesson(currentClass, schedule);
+            if (currentClassKey) {
+                document.getElementById('context-msg').innerText = `You are in ${currentSubjectName}`;
+                select.value = currentClassKey;
+                calculateNextLesson(currentClassKey, schedule);
             } else {
                 document.getElementById('context-msg').innerText = "Assigning Homework";
                 document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
@@ -479,40 +331,56 @@
             }
         }
 
-        document.getElementById('hw-subject').addEventListener('change', (e) => {
-            calculateNextLesson(e.target.value, JSON.parse(localStorage.getItem('schedule') || '[]'));
-        });
+        document.getElementById('hw-subject').addEventListener('change', (e) => calculateNextLesson(e.target.value, JSON.parse(localStorage.getItem('schedule') || '[]')));
 
-        function calculateNextLesson(subject, schedule) {
-            if(!subject) return;
+        function calculateNextLesson(classKey, schedule) {
+            if(!classKey) return;
+            const [subject, teacher] = classKey.split('|');
             const now = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             let nextDate = "Unknown";
 
+            // Scan ahead 14 days looking for the exact teacher match
             for(let i = 1; i <= 14; i++) {
                 const checkDate = new Date(now);
                 checkDate.setDate(now.getDate() + i);
                 const dayName = days[checkDate.getDay()];
                 
                 const daySchedule = schedule.find(d => d.day.includes(dayName));
-                if(daySchedule && daySchedule.classes.find(c => c.rawText === subject)) {
-                    nextDate = `Next Lesson: ${dayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
-                    break;
+                if(daySchedule) {
+                    const match = daySchedule.classes.find(c => c.rawText === subject && (c.teacher || '') === teacher);
+                    if(match) {
+                        nextDate = `Next Lesson: ${dayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
+                        break;
+                    }
                 }
             }
             document.getElementById('due-date-preview').innerText = nextDate;
             document.getElementById('due-date-preview').dataset.due = nextDate;
         }
 
-        // --- SAVE HW ---
         document.getElementById('addHwForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const file = document.getElementById('hw-image').files[0];
+            
+            // Check if user set a custom date, otherwise use auto-calculated
+            const customDateInput = document.getElementById('custom-due-date').value;
+            let finalDueDate = document.getElementById('due-date-preview').dataset.due || 'Next Lesson';
+            
+            if (customDateInput) {
+                const dateObj = new Date(customDateInput);
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                finalDueDate = `Due: ${days[dateObj.getDay()]}, ${dateObj.getDate()}/${dateObj.getMonth()+1}`;
+            }
+
+            const subjectKey = document.getElementById('hw-subject').value;
+            const displaySubject = subjectKey.split('|')[0]; // Strip out teacher for cleaner display
+
             const task = {
                 id: Date.now().toString(),
-                subject: document.getElementById('hw-subject').value,
+                subject: displaySubject,
                 desc: document.getElementById('hw-desc').value,
-                due: document.getElementById('due-date-preview').dataset.due || 'Next Lesson',
+                due: finalDueDate,
                 status: 'active',
                 image: null
             };
@@ -527,22 +395,16 @@
         function saveTaskToDB(task) {
             const tx = db.transaction("homework", "readwrite");
             tx.objectStore("homework").put(task); 
-            tx.oncomplete = () => {
-                document.getElementById('addHwForm').reset();
-                switchTab('dashboard', 'Dashboard');
-            };
+            tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Dashboard'); };
         }
 
-        // --- DASHBOARD & HISTORY ---
         function renderHomework() {
             if (!db) return;
             const list = document.getElementById('homework-list');
             const historyList = document.getElementById('history-list');
             const historySection = document.getElementById('history-section');
             
-            list.innerHTML = '';
-            historyList.innerHTML = '';
-            historySection.style.display = 'none';
+            list.innerHTML = ''; historyList.innerHTML = ''; historySection.style.display = 'none';
             
             const tx = db.transaction("homework", "readonly");
             tx.objectStore("homework").getAll().onsuccess = e => {
@@ -563,26 +425,38 @@
         function createTaskCard(task, isHistory) {
             const card = document.createElement('div');
             card.className = `box hw-card ${isHistory ? 'completed' : ''}`;
-            let actionBtns = isHistory ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>`;
-            card.innerHTML = `<div class="hw-header"><span class="subject">${task.subject}</span><span class="hw-due">${task.due}</span></div><div class="hw-desc">${task.desc}</div>${task.image ? `<img src="${task.image}" class="hw-img">` : ''}<div class="hw-actions">${actionBtns}</div>`;
+            
+            // Hard Delete button added alongside Complete
+            let actionBtns = isHistory 
+                ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` 
+                : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>
+                   <button class="btn-hard-delete" onclick="hardDeleteTask('${task.id}')">Delete</button>`;
+            
+            // Added expanding toggle logic to the image
+            const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
+            
+            card.innerHTML = `<div class="hw-header"><span class="subject">${task.subject}</span><span class="hw-due">${task.due}</span></div><div class="hw-desc">${task.desc}</div>${imageHTML}<div class="hw-actions">${actionBtns}</div>`;
             return card;
         }
 
         function updateTaskStatus(id, newStatus) {
             const tx = db.transaction("homework", "readwrite");
             const store = tx.objectStore("homework");
-            store.get(id).onsuccess = (e) => {
-                const task = e.target.result;
-                task.status = newStatus;
-                store.put(task); 
-            };
+            store.get(id).onsuccess = (e) => { const task = e.target.result; task.status = newStatus; store.put(task); };
             tx.oncomplete = () => renderHomework();
         }
-    // --- SERVICE WORKER REGISTRATION ---
+
+        // Permanently erase mistake
+        function hardDeleteTask(id) {
+            if(confirm("Permanently delete this homework?")) {
+                const tx = db.transaction("homework", "readwrite");
+                tx.objectStore("homework").delete(id);
+                tx.oncomplete = () => renderHomework();
+            }
+        }
+
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration failed', err));
-            });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration failed', err)); });
         }
     </script>
 </body>
