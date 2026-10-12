@@ -32,7 +32,6 @@
         .nav-item.active .nav-icon { opacity: 1; }
 
         input, select, textarea { width: 100%; padding: 14px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--line-color); border-radius: 10px; font-size: 16px; margin-bottom: 12px; font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        /* Fix native date picker appearance */
         input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 50px; }
         
         button.btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
@@ -60,7 +59,6 @@
         .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
         .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
 
-        /* Upgraded Task Cards */
         .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; }
         .hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .hw-title-group { display: flex; flex-direction: column; gap: 4px; }
@@ -154,6 +152,7 @@
                 <div id="timetable-controls" class="view-toggles">
                     <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
                     <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Full Week</button>
+                    <button class="toggle-btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="showSyncForm()">🔄 Sync</button>
                 </div>
                 <div id="timetable-list"></div>
             </div>
@@ -276,6 +275,14 @@
                 });
                 list.appendChild(dayTimeline);
             });
+        }
+
+        function showSyncForm() {
+            if(confirm("Download the latest timetable from Arbor? Your saved homework will NOT be deleted.")) {
+                document.getElementById('form-section').style.display = 'block';
+                document.getElementById('timetable-controls').style.display = 'none';
+                document.getElementById('timetable-list').innerHTML = '';
+            }
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -443,7 +450,6 @@
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
             
-            // Prioritize teacher name. Fallback to subject if no teacher is known.
             const mainTitle = task.teacher ? task.teacher : task.subject;
             const subjectBadge = task.teacher ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
