@@ -5,178 +5,231 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AutoPlanner</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#09090b">
     <style>
-        :root { color-scheme: light; --primary: #4f46e5; --bg: #f3f4f6; --card-bg: #ffffff; --text-main: #111827; --text-muted: #6b7280; --line-color: #e5e7eb; --success: #10b981; }
-        body.dark-mode { color-scheme: dark; --bg: #111827; --card-bg: #1f2937; --text-main: #f9fafb; --text-muted: #9ca3af; --line-color: #374151; --success: #059669; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background-color 0.3s, color 0.3s; }
-        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { 
+            color-scheme: light; 
+            --primary: #4f46e5; 
+            --bg: #f4f4f5; 
+            --card-bg: #ffffff; 
+            --text-main: #09090b; 
+            --text-muted: #71717a; 
+            --line-color: #e4e4e7; 
+            --success: #10b981;
+            --danger: #ef4444;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+        body.dark-mode { 
+            color-scheme: dark; 
+            --bg: #09090b; 
+            --card-bg: #18181b; 
+            --text-main: #fafafa; 
+            --text-muted: #a1a1aa; 
+            --line-color: #27272a; 
+        }
         
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background-color 0.2s; }
+        
+        /* Glassmorphism Header & Nav */
+        header { position: sticky; top: 0; background-color: rgba(var(--card-bg-rgb), 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 16px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line-color); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .header-actions { display: flex; gap: 16px; align-items: center; }
+        .header-actions button { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; transition: color 0.2s; }
+        .header-actions button:hover { color: var(--text-main); }
+        
+        nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(var(--card-bg-rgb), 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line-color); display: flex; justify-content: space-around; padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); background: none; border: none; font-size: 11px; font-weight: 600; cursor: pointer; padding: 6px 12px; gap: 4px; transition: color 0.2s; }
+        .nav-item.active { color: var(--text-main); }
+        .nav-item svg { stroke-width: 2.5; opacity: 0.6; }
+        .nav-item.active svg { opacity: 1; stroke: var(--primary); }
+
+        /* Need RGB variables for rgba() backgrounds */
+        :root { --card-bg-rgb: 255, 255, 255; }
+        body.dark-mode { --card-bg-rgb: 24, 24, 27; }
+
         #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; text-align: center; }
         #app-container { display: none; flex-direction: column; height: 100%; width: 100%; }
-        header { background-color: var(--card-bg); padding: 16px 20px; font-size: 20px; font-weight: 700; border-bottom: 1px solid var(--line-color); display: flex; justify-content: space-between; align-items: center; }
-        .header-actions button { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-main); margin-left: 15px; }
-        main { flex-grow: 1; overflow-y: auto; padding: 20px; padding-bottom: 90px; }
+        main { flex-grow: 1; overflow-y: auto; padding: 16px; padding-bottom: 90px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        nav { position: fixed; bottom: 0; left: 0; width: 100%; background-color: var(--card-bg); border-top: 1px solid var(--line-color); display: flex; justify-content: space-around; padding: 12px 0; padding-bottom: env(safe-area-inset-bottom, 12px); z-index: 100; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); background: none; border: none; font-size: 12px; font-weight: 500; cursor: pointer; padding: 8px 12px; }
-        .nav-item.active { color: var(--primary); }
-        .nav-icon { width: 24px; height: 24px; margin-bottom: 4px; border-radius: 4px; background-color: currentColor; opacity: 0.2; }
-        .nav-item.active .nav-icon { opacity: 1; }
 
-        input, select, textarea { width: 100%; padding: 14px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--line-color); border-radius: 10px; font-size: 16px; margin-bottom: 12px; font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 50px; }
+        /* Form Elements */
+        input, select, textarea { width: 100%; padding: 12px 14px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--line-color); border-radius: var(--radius-md); font-size: 15px; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+        input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 46px; }
         
-        button.btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
-        .box { background: var(--card-bg); padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid var(--line-color); }
+        button.btn { width: 100%; background-color: var(--text-main); color: var(--bg); border: none; padding: 12px; border-radius: var(--radius-md); font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        button.btn:active { opacity: 0.8; }
+        
+        /* Modern Flat Cards */
+        .box { background: var(--card-bg); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--line-color); margin-bottom: 12px; }
         
         #loading { display: none; text-align: center; padding: 40px 0; }
-        .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
+        .spinner { width: 32px; height: 32px; border: 3px solid var(--line-color); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .view-toggles { display: flex; gap: 10px; margin-bottom: 20px; }
-        .toggle-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; cursor: pointer; text-align: center; }
-        .toggle-btn.active-toggle { background: var(--primary); color: white; }
+        /* View Toggles */
+        .view-toggles { display: flex; gap: 8px; margin-bottom: 16px; }
+        .toggle-btn { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--line-color); background: var(--card-bg); color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .toggle-btn.active-toggle { background: var(--text-main); color: var(--bg); border-color: var(--text-main); }
 
-        .day-header { margin-top: 10px; margin-bottom: 15px; font-size: 18px; color: var(--primary); font-weight: bold; border-bottom: 2px solid var(--line-color); padding-bottom: 5px; }
-        .timetable { position: relative; padding-left: 20px; margin-bottom: 30px; }
-        .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 27px; width: 2px; background-color: var(--line-color); }
-        .class-slot { display: flex; align-items: flex-start; margin-bottom: 24px; position: relative; }
-        .class-slot::before { content: ''; position: absolute; left: 3px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--primary); border: 3px solid var(--bg); z-index: 1; }
-        .class-slot.free-period .info-col { background: transparent; border: 2px dashed var(--line-color); box-shadow: none; display: flex; align-items: center; padding: 12px 16px;}
-        .class-slot.free-period::before { background-color: var(--line-color); }
-        .class-slot.free-period .subject { color: var(--text-muted); font-weight: 500; font-style: italic; }
-        .time-col { width: 75px; flex-shrink: 0; padding-right: 15px; text-align: right; padding-top: 2px; }
-        .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
-        .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-        .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
-        .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
+        /* Timetable UI */
+        .day-header { margin-top: 8px; margin-bottom: 12px; font-size: 14px; color: var(--text-main); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .timetable { position: relative; padding-left: 16px; margin-bottom: 24px; }
+        .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 20px; width: 1px; background-color: var(--line-color); }
+        .class-slot { display: flex; align-items: flex-start; margin-bottom: 16px; position: relative; }
+        .class-slot::before { content: ''; position: absolute; left: 1px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background-color: var(--line-color); z-index: 1; }
+        .class-slot:not(.free-period)::before { background-color: var(--primary); }
+        
+        .time-col { width: 65px; flex-shrink: 0; padding-right: 12px; text-align: right; padding-top: 1px; }
+        .time-start { font-weight: 600; font-size: 13px; color: var(--text-main); }
+        .time-end { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        
+        .info-col { flex-grow: 1; background: var(--card-bg); padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--line-color); margin-left: 8px; }
+        .class-slot.free-period .info-col { background: transparent; border: 1px dashed var(--line-color); padding: 10px 16px; }
+        .class-slot.free-period .subject { color: var(--text-muted); font-weight: 500; font-size: 14px; }
+        .subject { font-size: 15px; font-weight: 600; color: var(--text-main); }
+        .class-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; display: flex; gap: 8px; align-items: center; }
 
-        .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; position: relative; }
+        /* Task Cards */
+        .hw-card { display: flex; flex-direction: column; gap: 10px; }
         .hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .hw-title-group { display: flex; flex-direction: column; gap: 4px; }
-        .hw-teacher { font-size: 18px; font-weight: 800; color: var(--text-main); }
-        .hw-subject-badge { font-size: 12px; font-weight: 600; color: var(--primary); background: var(--bg); padding: 4px 10px; border-radius: 12px; display: inline-block; align-self: flex-start; border: 1px solid var(--line-color); }
-        .hw-due { font-size: 12px; font-weight: 700; color: #ef4444; background: #fee2e2; padding: 6px 10px; border-radius: 8px; white-space: nowrap; }
-        body.dark-mode .hw-due { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-        .hw-desc { font-size: 15px; color: var(--text-main); white-space: pre-wrap; line-height: 1.5; }
+        .hw-teacher { font-size: 16px; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+        .hw-subject-badge { font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--bg); padding: 2px 8px; border-radius: 20px; display: inline-block; align-self: flex-start; }
+        .hw-due { font-size: 11px; font-weight: 600; color: var(--danger); background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: var(--radius-sm); white-space: nowrap; }
+        .hw-desc { font-size: 14px; color: var(--text-main); white-space: pre-wrap; line-height: 1.5; }
         
-        .hw-img { width: 80px; height: 80px; border-radius: 10px; margin-top: 4px; object-fit: cover; cursor: pointer; transition: all 0.2s ease; border: 1px solid var(--line-color); }
-        .hw-img.expanded { width: 100%; height: auto; max-height: 400px; object-fit: contain; }
+        .hw-img { width: 64px; height: 64px; border-radius: var(--radius-sm); object-fit: cover; cursor: pointer; border: 1px solid var(--line-color); transition: all 0.2s; }
+        .hw-img.expanded { width: 100%; height: auto; max-height: 400px; object-fit: contain; border: none; background: #000; }
         
-        .hw-actions { display: flex; gap: 12px; margin-top: 8px; }
-        .btn-complete { background: var(--success); flex: 1; padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
-        .btn-edit { background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
-        .btn-hard-delete { background: #ef4444; padding: 12px 16px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .hw-actions { display: flex; gap: 8px; margin-top: 6px; }
+        .action-btn { flex: 1; padding: 10px; border-radius: var(--radius-sm); border: none; font-weight: 600; font-size: 13px; cursor: pointer; transition: opacity 0.2s; }
+        .btn-complete { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .btn-edit { background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color); }
+        .btn-hard-delete { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
         
-        .history-header { margin-top: 30px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); border-bottom: 2px solid var(--line-color); padding-bottom: 8px; margin-bottom: 15px; font-weight: 700; }
-        .hw-card.completed { opacity: 0.6; border-left-color: var(--success); box-shadow: none; border: 1px solid var(--line-color); border-left: 5px solid var(--success); background: transparent; }
+        .history-header { margin-top: 24px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; margin-bottom: 12px; }
+        .hw-card.completed { opacity: 0.6; }
         .hw-card.completed .btn-complete, .hw-card.completed .btn-edit { display: none; }
-        .btn-restore { background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; flex: 1; }
+        .btn-restore { background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color); }
 
         /* Compact Mode */
-        .compact-mode .hw-card { padding: 12px 15px; gap: 6px; border-left-width: 4px; }
-        .compact-mode .hw-teacher { font-size: 15px; }
-        .compact-mode .hw-subject-badge { padding: 2px 8px; font-size: 11px; }
-        .compact-mode .hw-due { padding: 4px 8px; font-size: 11px; }
-        .compact-mode .hw-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+        .compact-mode .hw-card { padding: 12px; gap: 6px; }
+        .compact-mode .hw-teacher { font-size: 14px; }
+        .compact-mode .hw-subject-badge { display: none; }
+        .compact-mode .hw-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; margin: 2px 0; }
         .compact-mode .hw-img { display: none; }
-        .compact-mode .hw-actions { margin-top: 4px; }
-        .compact-mode .hw-actions button { padding: 8px; font-size: 13px; }
+        .compact-mode .hw-actions { margin-top: 2px; }
+        .compact-mode .action-btn { padding: 6px; font-size: 12px; }
 
         /* Edit Modal */
-        #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; }
+        #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background: var(--card-bg); padding: 24px; border-radius: var(--radius-md); width: 100%; max-width: 400px; border: 1px solid var(--line-color); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        
+        /* Typography overrides for cleaner labels */
+        .input-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen">
-        <div id="auth-message" style="font-size: 18px; font-weight: 600; line-height: 1.5;">Verifying Access...</div>
-        <div id="auth-prompt" class="box" style="display: none; width: 100%; max-width: 350px;">
-            <h2 style="margin-bottom: 5px;">App Locked</h2>
-            <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 14px;">Enter PIN to continue</p>
-            <input type="password" id="app-pin-input" placeholder="Enter PIN">
-            <p id="auth-error" style="color: #ef4444; margin-bottom: 10px; font-size: 14px; display: none;">Incorrect PIN</p>
+        <div id="auth-message" style="font-size: 16px; font-weight: 600;">Verifying Access...</div>
+        <div id="auth-prompt" class="box" style="display: none; width: 100%; max-width: 320px;">
+            <h2 style="margin-bottom: 6px; font-size: 18px;">Locked</h2>
+            <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 14px;">Enter PIN to continue</p>
+            <input type="password" id="app-pin-input" placeholder="Enter PIN" style="text-align: center; letter-spacing: 4px;">
+            <p id="auth-error" style="color: var(--danger); margin-bottom: 12px; font-size: 13px; display: none;">Incorrect PIN</p>
             <button class="btn" onclick="checkAppPin()">Unlock</button>
         </div>
     </div>
 
-    <!-- Edit Modal -->
     <div id="edit-modal">
         <div class="modal-content">
-            <h2 style="margin-bottom: 15px;">Edit Homework</h2>
+            <h2 style="margin-bottom: 20px; font-size: 18px;">Edit Task</h2>
             <input type="hidden" id="edit-id">
-            <label style="font-size: 14px; color: var(--text-muted);">Due Date:</label>
+            <label class="input-label">Due Date Override</label>
             <input type="text" id="edit-due" placeholder="e.g. Due: Monday, 19/10">
-            <label style="font-size: 14px; color: var(--text-muted);">Description:</label>
+            <label class="input-label">Description</label>
             <textarea id="edit-desc" rows="4"></textarea>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn" style="background: var(--text-muted);" onclick="closeEditModal()">Cancel</button>
-                <button class="btn" onclick="saveEdit()">Save Changes</button>
+            <div style="display: flex; gap: 10px; margin-top: 8px;">
+                <button class="btn" style="background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color);" onclick="closeEditModal()">Cancel</button>
+                <button class="btn" onclick="saveEdit()">Save</button>
             </div>
         </div>
     </div>
 
     <div id="app-container">
         <header>
-            <span id="app-header-title">Dashboard</span>
+            <span id="app-header-title">Tasks</span>
             <div class="header-actions">
-                <button onclick="clearAllData()" title="Clear Data">🗑️</button>
-                <button id="theme-toggle">🌙</button>
+                <button onclick="clearAllData()" title="Clear Data">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </button>
+                <button id="theme-toggle">
+                    <!-- Default to Moon, JS handles swap -->
+                    <svg id="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
             </div>
         </header>
 
         <main>
             <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 14px; font-weight: bold; color: var(--text-muted);">Sort:</span>
-                        <select id="feed-sort" onchange="renderHomework()" style="width: auto; padding: 6px 10px; margin-bottom: 0; min-height: auto; font-size: 14px;">
+                        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Sort:</span>
+                        <select id="feed-sort" onchange="renderHomework()" style="width: auto; padding: 6px 12px; margin-bottom: 0; min-height: auto; font-size: 13px; border-radius: var(--radius-sm); border-color: transparent; background: var(--card-bg);">
                             <option value="due">Due Date</option>
                             <option value="set">Date Set</option>
                         </select>
                     </div>
-                    <button id="compact-toggle" class="btn" style="width: auto; padding: 6px 12px; font-size: 14px; background: var(--text-muted);" onclick="toggleCompactMode()">📄 Compact</button>
+                    <button id="compact-toggle" class="toggle-btn" style="width: auto; padding: 6px 12px; display: flex; align-items: center; gap: 6px;" onclick="toggleCompactMode()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        Compact
+                    </button>
                 </div>
                 <div id="homework-list"></div>
                 <div id="history-section" style="display: none;">
-                    <h2 class="history-header">History</h2>
+                    <h2 class="history-header">Completed</h2>
                     <div id="history-list"></div>
                 </div>
             </div>
 
             <!-- ADD HOMEWORK TAB -->
             <div id="tab-add" class="tab-content">
-                <div class="box">
+                <div class="box" style="border: none; background: transparent; padding: 0; margin-bottom: 24px;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--primary);"></div>
-                        <span id="context-msg" style="font-weight: 700; font-size: 18px; color: var(--text-main);">Detecting class...</span>
+                        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary);"></div>
+                        <span id="context-msg" style="font-weight: 600; font-size: 16px; color: var(--text-main);">Detecting class...</span>
                     </div>
                     
                     <form id="addHwForm">
-                        <label style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block;">Subject / Teacher</label>
+                        <label class="input-label">Subject / Teacher</label>
                         <select id="hw-subject" required>
                             <option value="">Select Subject...</option>
                         </select>
                         
-                        <div id="due-date-preview" style="font-size: 14px; color: var(--primary); margin-bottom: 15px; font-weight: 600; background: rgba(79, 70, 229, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary);">
+                        <div id="due-date-preview" style="font-size: 13px; color: var(--primary); margin-bottom: 16px; font-weight: 600; padding-left: 12px; border-left: 2px solid var(--primary);">
                             Due: Select a subject first
                         </div>
                         
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Override Auto Date:</label>
+                        <div style="margin-bottom: 16px;">
+                            <label class="input-label">Override Auto Date (Optional)</label>
                             <input type="date" id="custom-due-date" style="margin-bottom: 0;">
                         </div>
 
-                        <label style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block;">Homework Details (Optional if attaching image)</label>
+                        <label class="input-label">Details</label>
                         <textarea id="hw-desc" placeholder="What's the homework?" rows="3"></textarea>
                         
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted);">Attach Photo</label>
-                        <input type="file" id="hw-image" accept="image/*" style="padding: 10px; background: var(--bg);">
-                        <button type="submit" class="btn" style="margin-top: 15px;">Save Homework</button>
+                        <label class="input-label">Attach Photo</label>
+                        <input type="file" id="hw-image" accept="image/*" style="padding: 10px; background: var(--bg); border: 1px dashed var(--line-color);">
+                        
+                        <button type="submit" class="btn" style="margin-top: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            Save Task
+                        </button>
                     </form>
                 </div>
             </div>
@@ -184,31 +237,63 @@
             <!-- TIMETABLE TAB -->
             <div id="tab-timetable" class="tab-content">
                 <div id="form-section" class="box">
-                    <h2 style="margin-bottom: 15px;">Sync Arbor</h2>
+                    <h2 style="margin-bottom: 16px; font-size: 16px;">Sync Schedule</h2>
                     <form id="loginForm">
                         <input type="email" id="email" placeholder="Arbor Email" required>
                         <input type="password" id="password" placeholder="Arbor Password" required>
-                        <button type="submit" class="btn">Download Timetable</button>
+                        <button type="submit" class="btn">Connect & Download</button>
                     </form>
                 </div>
-                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing Schedule...</div></div>
+                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 500; font-size: 13px;">Syncing 14 Days...</div></div>
                 <div id="timetable-controls" class="view-toggles" style="display: none;">
                     <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
-                    <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Full Week</button>
-                    <button class="toggle-btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="showSyncForm()">🔄 Sync</button>
+                    <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Week</button>
+                    <button class="toggle-btn" style="display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="showSyncForm()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Sync
+                    </button>
                 </div>
                 <div id="timetable-list"></div>
             </div>
         </main>
 
         <nav>
-            <button class="nav-item active" onclick="switchTab('dashboard', 'Dashboard')"><div class="nav-icon"></div>Tasks</button>
-            <button class="nav-item" onclick="switchTab('add', 'Add Homework')"><div class="nav-icon"></div>Add</button>
-            <button class="nav-item" onclick="switchTab('timetable', 'My Schedule')"><div class="nav-icon"></div>Timetable</button>
+            <button class="nav-item active" onclick="switchTab('dashboard', 'Tasks')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                Tasks
+            </button>
+            <button class="nav-item" onclick="switchTab('add', 'Add Task')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Add
+            </button>
+            <button class="nav-item" onclick="switchTab('timetable', 'Schedule')">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                Schedule
+            </button>
         </nav>
     </div>
 
     <script>
+        // --- THEME ICON SWAPPER ---
+        const moonIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        const sunIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            if (document.body.classList.contains('dark-mode')) toggle.innerHTML = sunIcon;
+            else toggle.innerHTML = moonIcon;
+        }
+
+        const themeToggle = document.getElementById('theme-toggle');
+        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(); }
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) localStorage.setItem('theme', 'dark'); 
+            else localStorage.setItem('theme', 'light');
+            updateThemeIcon();
+        });
+
+        // --- AUTH & DATA ---
         function checkAccess() {
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             if (isStandalone) {
@@ -218,9 +303,9 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.get('pin') === '5566') {
                     const msg = document.getElementById('auth-message');
-                    msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted);'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
+                    msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:13px; font-weight:normal; color: var(--text-muted);'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
                     msg.style.color = "var(--text-main)";
-                } else { document.getElementById('auth-message').innerText = "Access Denied."; document.getElementById('auth-message').style.color = "#ef4444"; }
+                } else { document.getElementById('auth-message').innerText = "Access Denied."; document.getElementById('auth-message').style.color = "var(--danger)"; }
             }
         }
         function checkAppPin() {
@@ -237,14 +322,6 @@
                 req.onsuccess = () => location.reload();
             }
         }
-
-        const themeToggle = document.getElementById('theme-toggle');
-        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); themeToggle.innerText = '☀️'; }
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-            if (document.body.classList.contains('dark-mode')) { localStorage.setItem('theme', 'dark'); themeToggle.innerText = '☀️'; } 
-            else { localStorage.setItem('theme', 'light'); themeToggle.innerText = '🌙'; }
-        });
 
         let db;
         const request = indexedDB.open("AutoPlannerDB", 3);
@@ -279,15 +356,11 @@
 
         function getWeekTypeIndex(targetDateStr) {
             const anchorStr = localStorage.getItem('syncAnchor');
-            if (!anchorStr) return 0; // Fallback if missing
-            
+            if (!anchorStr) return 0;
             const anchorMonday = getMonday(anchorStr);
             const targetMonday = getMonday(targetDateStr);
-            
             const diffTime = Math.abs(targetMonday - anchorMonday);
             const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000));
-            
-            // 0 = Week A (first occurrence in saved array), 1 = Week B (second occurrence)
             return diffWeeks % 2; 
         }
 
@@ -295,14 +368,9 @@
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayName = days[targetDate.getDay()];
             const weekIndex = getWeekTypeIndex(targetDate);
-            
-            // Find all days that match the weekday name (ignores the literal date number)
             const occurrences = scheduleArray.filter(d => d.day.includes(dayName));
-            
-            // Return Week A (index 0) or Week B (index 1). Fallback to index 0 if they only scraped 1 week.
             return occurrences[weekIndex] || occurrences[0];
         }
-        // -------------------------------
 
         function renderTimetable(viewType = 'today') {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
@@ -320,14 +388,10 @@
             if (viewType === 'today') {
                 let targetDate = new Date();
                 let dayNum = targetDate.getDay();
-                if (dayNum === 0 || dayNum === 6) {
-                    // Skip to Monday on weekends
-                    targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
-                }
+                if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
                 const sched = getDaySchedule(targetDate, schedule);
                 if (sched) daysToRender.push(sched);
             } else {
-                // Render Monday to Friday for the current active week
                 let targetDate = getMonday(new Date());
                 for(let i=0; i<5; i++) {
                     const sched = getDaySchedule(targetDate, schedule);
@@ -340,7 +404,6 @@
 
             daysToRender.forEach(daySchedule => {
                 const cleanDayName = daySchedule.day.replace(/^\d+\s+/, '');
-                
                 const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; dayHeader.innerText = cleanDayName; list.appendChild(dayHeader);
                 const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
 
@@ -366,7 +429,7 @@
                     let metaHTML = '';
                     if (!slotData.isFree && (slotData.teacher || slotData.room)) {
                         let metaParts = []; if (slotData.teacher) metaParts.push(slotData.teacher); if (slotData.room) metaParts.push(slotData.room);
-                        metaHTML = `<div style="font-size: 13px; color: var(--text-muted); margin-top: 5px; font-weight: 500;">${metaParts.join('&nbsp;&nbsp;|&nbsp;&nbsp;')}</div>`;
+                        metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`;
                     }
                     slot.innerHTML = `<div class="time-col"><div class="time-start">${start.trim()}</div><div class="time-end">${end ? end.trim() : ''}</div></div><div class="info-col"><div class="subject">${slotData.rawText}</div>${metaHTML}</div>`;
                     dayTimeline.appendChild(slot);
@@ -408,9 +471,7 @@
                 d.classes.forEach(c => {
                     if (c.isFree) return;
                     const key = c.rawText + '|' + (c.teacher || '');
-                    if (!classTypes.find(ct => ct.key === key)) {
-                        classTypes.push({ key, subject: c.rawText, teacher: c.teacher || '' });
-                    }
+                    if (!classTypes.find(ct => ct.key === key)) classTypes.push({ key, subject: c.rawText, teacher: c.teacher || '' });
                 });
             });
 
@@ -442,7 +503,7 @@
                 select.value = currentClassKey;
                 calculateNextLesson(currentClassKey, schedule);
             } else {
-                document.getElementById('context-msg').innerText = "Assigning Homework";
+                document.getElementById('context-msg').innerText = "Assigning Task";
                 document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
                 document.getElementById('due-date-preview').dataset.due = "";
             }
@@ -464,13 +525,11 @@
                 const checkDayName = days[checkDate.getDay()];
                 
                 const daySchedule = getDaySchedule(checkDate, schedule);
-                
                 if(daySchedule) {
                     const match = daySchedule.classes.find(c => {
                         if (teacher && c.teacher) return c.teacher === teacher; 
                         return c.rawText === subject; 
                     });
-                    
                     if(match) {
                         nextDate = `Next Lesson: ${checkDayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
                         found = true;
@@ -478,9 +537,7 @@
                     }
                 }
             }
-            
             if(!found) nextDate = "No lesson found in schedule";
-            
             document.getElementById('due-date-preview').innerText = nextDate;
             document.getElementById('due-date-preview').dataset.due = nextDate;
         }
@@ -490,10 +547,7 @@
             const file = document.getElementById('hw-image').files[0];
             const desc = document.getElementById('hw-desc').value;
             
-            if(!file && !desc.trim()) {
-                alert("Please add a description or attach a photo.");
-                return;
-            }
+            if(!file && !desc.trim()) return alert("Please add details or attach a photo.");
             
             const customDateInput = document.getElementById('custom-due-date').value;
             let finalDueDate = document.getElementById('due-date-preview').dataset.due || 'Next Lesson';
@@ -508,16 +562,7 @@
             const displaySubject = subjectKey.split('|')[0]; 
             const teacherName = subjectKey.split('|')[1] || ''; 
 
-            const task = {
-                id: Date.now().toString(),
-                dateSet: Date.now(),
-                subject: displaySubject,
-                teacher: teacherName,
-                desc: desc,
-                due: finalDueDate,
-                status: 'active',
-                image: null
-            };
+            const task = { id: Date.now().toString(), dateSet: Date.now(), subject: displaySubject, teacher: teacherName, desc: desc, due: finalDueDate, status: 'active', image: null };
 
             if (file) {
                 const reader = new FileReader();
@@ -529,7 +574,7 @@
         function saveTaskToDB(task) {
             const tx = db.transaction("homework", "readwrite");
             tx.objectStore("homework").put(task); 
-            tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Dashboard'); };
+            tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Tasks'); };
         }
 
         function parseDueDate(dueStr) {
@@ -557,20 +602,15 @@
             const tx = db.transaction("homework", "readonly");
             tx.objectStore("homework").getAll().onsuccess = e => {
                 let tasks = e.target.result;
-                
                 tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id); });
 
                 let activeTasks = tasks.filter(t => t.status !== 'completed');
-                
-                if (sortMethod === 'due') {
-                    activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
-                } else {
-                    activeTasks.sort((a,b) => b.dateSet - a.dateSet);
-                }
+                if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
+                else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
 
                 const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
-                if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px;">No pending homework.<br>You are all caught up!</div>';
+                if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 14px;">No pending tasks.<br>You are all caught up!</div>';
                 else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
 
                 if (completedTasks.length > 0) {
@@ -585,14 +625,13 @@
             card.className = `box hw-card ${isHistory ? 'completed' : ''}`;
             
             let actionBtns = isHistory 
-                ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` 
-                : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>
-                   <button class="btn-edit" onclick="openEditModal('${task.id}')">Edit</button>
-                   <button class="btn-hard-delete" onclick="hardDeleteTask('${task.id}')">Delete</button>`;
+                ? `<button class="action-btn btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` 
+                : `<button class="action-btn btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>
+                   <button class="action-btn btn-edit" onclick="openEditModal('${task.id}')">Edit</button>
+                   <button class="action-btn btn-hard-delete" onclick="hardDeleteTask('${task.id}')">Delete</button>`;
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
             const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
-            
             const mainTitle = task.teacher ? task.teacher : task.subject;
             const subjectBadge = task.teacher ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
@@ -619,7 +658,7 @@
         }
 
         function hardDeleteTask(id) {
-            if(confirm("Permanently delete this homework?")) {
+            if(confirm("Permanently delete this?")) {
                 const tx = db.transaction("homework", "readwrite");
                 tx.objectStore("homework").delete(id);
                 tx.oncomplete = () => renderHomework();
@@ -658,16 +697,12 @@
             list.classList.toggle('compact-mode');
             const isCompact = list.classList.contains('compact-mode');
             localStorage.setItem('compactMode', isCompact);
-            document.getElementById('compact-toggle').style.background = isCompact ? 'var(--primary)' : 'var(--text-muted)';
+            document.getElementById('compact-toggle').classList.toggle('active-toggle', isCompact);
         }
 
-        // Initialize Compact Mode on load
         if (localStorage.getItem('compactMode') === 'true') {
             document.getElementById('homework-list').classList.add('compact-mode');
-            setTimeout(() => {
-                const btn = document.getElementById('compact-toggle');
-                if (btn) btn.style.background = 'var(--primary)';
-            }, 50);
+            setTimeout(() => { document.getElementById('compact-toggle').classList.add('active-toggle'); }, 50);
         }
 
         if ('serviceWorker' in navigator) {
