@@ -120,7 +120,6 @@
         .compact-mode .action-icon-btn { width: 36px; height: 36px; }
         .compact-mode .action-icon-btn svg { width: 16px; height: 16px; }
 
-        /* SMART BARS */
         .smart-bar { display: none; position: fixed; left: 16px; right: 16px; background: var(--primary); color: white; padding: 16px; border-radius: var(--radius-md); z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,0.15); align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.2); }
         #current-lesson-bar { top: 75px; } 
         #next-lesson-bar { bottom: 85px; } 
@@ -133,6 +132,10 @@
         
         #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card-bg); padding: 24px; border-radius: var(--radius-md); width: 100%; max-width: 400px; border: 1px solid var(--line-color); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+
+        /* DEBUG LOGGER UI */
+        #debug-logger { display: none; background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 16px; color: #991b1b; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; max-height: 200px; overflow-y: auto; }
+        #debug-logger strong { color: #7f1d1d; font-size: 14px; display: block; margin-bottom: 6px; }
     </style>
 </head>
 <body>
@@ -197,6 +200,9 @@
         </header>
 
         <main>
+            <!-- DIAGNOSTIC LOGGER -->
+            <div id="debug-logger"><strong>ERROR DETECTED</strong><span id="debug-text"></span></div>
+
             <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -295,6 +301,24 @@
     </div>
 
     <script>
+        // --- GLOBAL ERROR LOGGER ---
+        function triggerDebugLog(message, source) {
+            const logger = document.getElementById('debug-logger');
+            const text = document.getElementById('debug-text');
+            logger.style.display = 'block';
+            text.innerText += `\n[${new Date().toLocaleTimeString()}] ${source}: ${message}\n---`;
+        }
+
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            triggerDebugLog(`${msg} \nLine: ${lineNo}:${columnNo} \nStack: ${error ? error.stack : 'N/A'}`, 'WindowError');
+            return false;
+        };
+
+        window.onunhandledrejection = function(event) {
+            triggerDebugLog(`Promise Rejection: ${event.reason}`, 'PromiseError');
+        };
+
+        // --- THEME & COLOR SWAPPER ---
         const moonIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
         const sunIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
 
@@ -358,16 +382,27 @@
                 localStorage.clear();
                 const req = indexedDB.deleteDatabase("AutoPlannerDB");
                 req.onsuccess = () => location.reload();
+                req.onerror = () => triggerDebugLog("Failed to delete database", "clearAllData");
             }
         }
 
         let db;
-        const request = indexedDB.open("AutoPlannerDB", 3);
-        request.onupgradeneeded = (e) => { 
-            db = e.target.result; 
-            if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
-        };
-        request.onsuccess = (e) => { db = e.target.result; renderHomework(); };
+        try {
+            const request = indexedDB.open("AutoPlannerDB", 3);
+            request.onupgradeneeded = (e) => { 
+                db = e.target.result; 
+                if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
+            };
+            request.onsuccess = (e) => { 
+                db = e.target.result; 
+                renderHomework(); 
+            };
+            request.onerror = (e) => {
+                triggerDebugLog(`IndexedDB Open Error: ${e.target.error}`, 'DBInit');
+            }
+        } catch(err) {
+            triggerDebugLog(err.stack || err, 'DBTryCatch');
+        }
 
         function switchTab(tabId, headerTitle) {
             document.getElementById('app-header-title').innerText = headerTitle;
@@ -380,7 +415,13 @@
             if(tabId === 'timetable') renderTimetable('today');
         }
 
-        const parseTime = (timeStr) => { const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; };
+        const parseTime = (timeStr) => { 
+            try {
+                const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; 
+            } catch(e) {
+                return 0;
+            }
+        };
         const formatTime = (mins) => { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; };
 
         function getMonday(date) {
@@ -405,134 +446,142 @@
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayName = days[targetDate.getDay()];
             const weekIndex = getWeekTypeIndex(targetDate);
-            const occurrences = scheduleArray.filter(d => d.day.includes(dayName));
+            const occurrences = scheduleArray.filter(d => d.day && d.day.includes(dayName));
             return occurrences[weekIndex] || occurrences[0];
         }
 
         function renderTimetable(viewType = 'today') {
-            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-            const list = document.getElementById('timetable-list');
-            list.innerHTML = '';
+            try {
+                const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+                const list = document.getElementById('timetable-list');
+                list.innerHTML = '';
 
-            document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
-            document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
+                document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
+                document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
 
-            if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; return; }
-            document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex';
+                if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; return; }
+                document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex';
 
-            let daysToRender = [];
-            
-            if (viewType === 'today') {
-                let targetDate = new Date();
-                let dayNum = targetDate.getDay();
-                if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
-                const sched = getDaySchedule(targetDate, schedule);
-                const weekType = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
-                if (sched) daysToRender.push({ ...sched, weekLabel: weekType });
-            } else {
-                let targetDate = getMonday(new Date());
-                for(let i=0; i<5; i++) {
+                let daysToRender = [];
+                
+                if (viewType === 'today') {
+                    let targetDate = new Date();
+                    let dayNum = targetDate.getDay();
+                    if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
                     const sched = getDaySchedule(targetDate, schedule);
                     const weekType = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
                     if (sched) daysToRender.push({ ...sched, weekLabel: weekType });
-                    targetDate.setDate(targetDate.getDate() + 1);
+                } else {
+                    let targetDate = getMonday(new Date());
+                    for(let i=0; i<5; i++) {
+                        const sched = getDaySchedule(targetDate, schedule);
+                        const weekType = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
+                        if (sched) daysToRender.push({ ...sched, weekLabel: weekType });
+                        targetDate.setDate(targetDate.getDate() + 1);
+                    }
                 }
+
+                if (daysToRender.length === 0) return; 
+
+                daysToRender.forEach(daySchedule => {
+                    const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, '');
+                    const dayHeader = document.createElement('div'); 
+                    dayHeader.className = 'day-header'; 
+                    dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: none;">(${daySchedule.weekLabel})</span>`;
+                    list.appendChild(dayHeader);
+                    
+                    const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
+
+                    let realClasses = daySchedule.classes.filter(c => { const end = parseTime(c.time.split('-')[1] || "23:59"); return end > 550; });
+                    const dayStartMins = 550; const dayEndMins = 924; let currentMins = dayStartMins;
+                    const slotsToRender = [];
+
+                    realClasses.forEach(cls => {
+                        const [startStr, endStr] = cls.time.split('-'); const startMins = parseTime(startStr); const endMins = parseTime(endStr);
+                        if (startMins - currentMins >= 45) {
+                            const isLunch = (currentMins >= 740 && startMins <= 815); 
+                            if (!isLunch) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - ${startStr}`, rawText: "Free Period" });
+                        }
+                        slotsToRender.push({ isFree: false, time: cls.time, rawText: cls.rawText, teacher: cls.teacher, room: cls.room });
+                        currentMins = endMins;
+                    });
+                    if (dayEndMins - currentMins >= 45) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - 15:24`, rawText: "Free Period" });
+
+                    slotsToRender.forEach(slotData => {
+                        const [start, end] = slotData.time.split('-');
+                        const slot = document.createElement('div');
+                        slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
+                        let metaHTML = '';
+                        if (!slotData.isFree && (slotData.teacher || slotData.room)) {
+                            let metaParts = []; if (slotData.teacher) metaParts.push(slotData.teacher); if (slotData.room) metaParts.push(slotData.room);
+                            metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`;
+                        }
+                        slot.innerHTML = `<div class="time-col"><div class="time-start">${start.trim()}</div><div class="time-end">${end ? end.trim() : ''}</div></div><div class="info-col"><div class="subject">${slotData.rawText}</div>${metaHTML}</div>`;
+                        dayTimeline.appendChild(slot);
+                    });
+                    list.appendChild(dayTimeline);
+                });
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'renderTimetable');
             }
-
-            if (daysToRender.length === 0) return; 
-
-            daysToRender.forEach(daySchedule => {
-                const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, '');
-                const dayHeader = document.createElement('div'); 
-                dayHeader.className = 'day-header'; 
-                dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: none;">(${daySchedule.weekLabel})</span>`;
-                list.appendChild(dayHeader);
-                
-                const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
-
-                let realClasses = daySchedule.classes.filter(c => { const end = parseTime(c.time.split('-')[1] || "23:59"); return end > 550; });
-                const dayStartMins = 550; const dayEndMins = 924; let currentMins = dayStartMins;
-                const slotsToRender = [];
-
-                realClasses.forEach(cls => {
-                    const [startStr, endStr] = cls.time.split('-'); const startMins = parseTime(startStr); const endMins = parseTime(endStr);
-                    if (startMins - currentMins >= 45) {
-                        const isLunch = (currentMins >= 740 && startMins <= 815); 
-                        if (!isLunch) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - ${startStr}`, rawText: "Free Period" });
-                    }
-                    slotsToRender.push({ isFree: false, time: cls.time, rawText: cls.rawText, teacher: cls.teacher, room: cls.room });
-                    currentMins = endMins;
-                });
-                if (dayEndMins - currentMins >= 45) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - 15:24`, rawText: "Free Period" });
-
-                slotsToRender.forEach(slotData => {
-                    const [start, end] = slotData.time.split('-');
-                    const slot = document.createElement('div');
-                    slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
-                    let metaHTML = '';
-                    if (!slotData.isFree && (slotData.teacher || slotData.room)) {
-                        let metaParts = []; if (slotData.teacher) metaParts.push(slotData.teacher); if (slotData.room) metaParts.push(slotData.room);
-                        metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`;
-                    }
-                    slot.innerHTML = `<div class="time-col"><div class="time-start">${start.trim()}</div><div class="time-end">${end ? end.trim() : ''}</div></div><div class="info-col"><div class="subject">${slotData.rawText}</div>${metaHTML}</div>`;
-                    dayTimeline.appendChild(slot);
-                });
-                list.appendChild(dayTimeline);
-            });
         }
 
         // --- DUAL SMART BARS ---
         function checkUpcomingLesson() {
-            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-            if (schedule.length === 0) return;
+            try {
+                const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+                if (schedule.length === 0) return;
 
-            const now = new Date();
-            const currentMins = now.getHours() * 60 + now.getMinutes();
-            let todaySchedule = getDaySchedule(now, schedule);
-            
-            const topBar = document.getElementById('current-lesson-bar');
-            const bottomBar = document.getElementById('next-lesson-bar');
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                let todaySchedule = getDaySchedule(now, schedule);
+                
+                const topBar = document.getElementById('current-lesson-bar');
+                const bottomBar = document.getElementById('next-lesson-bar');
 
-            if (!todaySchedule) { 
-                topBar.style.display = 'none'; 
-                bottomBar.style.display = 'none'; 
-                return; 
-            }
-
-            let currentLesson = null;
-            let nextLesson = null;
-            let timeToNext = 0;
-
-            for (let cls of todaySchedule.classes) {
-                if (cls.rawText === "Free Period") continue;
-                const times = cls.time.split('-');
-                if (times.length !== 2) continue;
-                const start = parseTime(times[0]);
-                const end = parseTime(times[1]);
-
-                if (currentMins >= start && currentMins <= end) {
-                    currentLesson = cls;
-                } else if (start > currentMins && start - currentMins <= 5) {
-                    nextLesson = cls;
-                    timeToNext = start - currentMins;
+                if (!todaySchedule) { 
+                    topBar.style.display = 'none'; 
+                    bottomBar.style.display = 'none'; 
+                    return; 
                 }
-            }
 
-            if (currentLesson) {
-                document.getElementById('cl-title').innerText = currentLesson.teacher || currentLesson.rawText;
-                document.getElementById('cl-room').innerText = currentLesson.room ? `Room ${currentLesson.room}` : currentLesson.rawText;
-                topBar.style.display = 'flex';
-            } else {
-                topBar.style.display = 'none';
-            }
+                let currentLesson = null;
+                let nextLesson = null;
+                let timeToNext = 0;
 
-            if (nextLesson) {
-                document.getElementById('nl-title').innerText = nextLesson.teacher || nextLesson.rawText;
-                document.getElementById('nl-room').innerText = nextLesson.room ? `Room ${nextLesson.room}` : nextLesson.rawText;
-                document.getElementById('nl-status').innerText = timeToNext === 0 ? 'SOON' : `IN ${timeToNext}M`;
-                bottomBar.style.display = 'flex';
-            } else {
-                bottomBar.style.display = 'none';
+                for (let cls of todaySchedule.classes) {
+                    if (cls.rawText === "Free Period") continue;
+                    const times = cls.time.split('-');
+                    if (times.length !== 2) continue;
+                    const start = parseTime(times[0]);
+                    const end = parseTime(times[1]);
+
+                    if (currentMins >= start && currentMins <= end) {
+                        currentLesson = cls;
+                    } else if (start > currentMins && start - currentMins <= 5) {
+                        nextLesson = cls;
+                        timeToNext = start - currentMins;
+                    }
+                }
+
+                if (currentLesson) {
+                    document.getElementById('cl-title').innerText = currentLesson.teacher || currentLesson.rawText;
+                    document.getElementById('cl-room').innerText = currentLesson.room ? `Room ${currentLesson.room}` : currentLesson.rawText;
+                    topBar.style.display = 'flex';
+                } else {
+                    topBar.style.display = 'none';
+                }
+
+                if (nextLesson) {
+                    document.getElementById('nl-title').innerText = nextLesson.teacher || nextLesson.rawText;
+                    document.getElementById('nl-room').innerText = nextLesson.room ? `Room ${nextLesson.room}` : nextLesson.rawText;
+                    document.getElementById('nl-status').innerText = timeToNext === 0 ? 'SOON' : `IN ${timeToNext}M`;
+                    bottomBar.style.display = 'flex';
+                } else {
+                    bottomBar.style.display = 'none';
+                }
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'checkUpcomingLesson');
             }
         }
 
@@ -556,99 +605,110 @@
                     checkUpcomingLesson();
                 } 
                 else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
-            } catch (error) { alert("Connection failed."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; }
+            } catch (error) { 
+                alert("Connection failed."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; 
+                triggerDebugLog(error.stack || error, 'SyncFormFetch');
+            }
         });
 
         function populateAddForm() {
-            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-            const select = document.getElementById('hw-subject');
-            select.innerHTML = '<option value="">Select...</option>';
-            document.getElementById('custom-due-date').value = '';
-            
-            // Collect unique dropdown options to prevent duplicates
-            const uniqueOptions = [];
-            schedule.forEach(d => {
-                d.classes.forEach(c => {
-                    if (c.isFree) return;
-                    let label = c.teacher ? c.teacher : c.rawText;
-                    let key = c.rawText + '|' + (c.teacher || '') + '|' + (c.room || '');
-                    if (!uniqueOptions.find(o => o.label === label)) {
-                        uniqueOptions.push({ label, key });
-                    }
+            try {
+                const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+                const select = document.getElementById('hw-subject');
+                select.innerHTML = '<option value="">Select...</option>';
+                document.getElementById('custom-due-date').value = '';
+                
+                const uniqueOptions = [];
+                schedule.forEach(d => {
+                    if (!d.classes) return;
+                    d.classes.forEach(c => {
+                        if (c.isFree) return;
+                        let label = c.teacher ? c.teacher : c.rawText;
+                        let key = c.rawText + '|' + (c.teacher || '') + '|' + (c.room || '');
+                        if (!uniqueOptions.find(o => o.label === label)) {
+                            uniqueOptions.push({ label, key });
+                        }
+                    });
                 });
-            });
 
-            uniqueOptions.forEach(opt => {
-                select.innerHTML += `<option value="${opt.key}">${opt.label}</option>`;
-            });
+                uniqueOptions.forEach(opt => {
+                    select.innerHTML += `<option value="${opt.key}">${opt.label}</option>`;
+                });
 
-            const now = new Date();
-            const currentMins = now.getHours() * 60 + now.getMinutes();
-            let todaySchedule = getDaySchedule(now, schedule);
+                const now = new Date();
+                const currentMins = now.getHours() * 60 + now.getMinutes();
+                let todaySchedule = getDaySchedule(now, schedule);
 
-            let currentClassKey = null;
-            let currentTeacher = null;
-            let currentRoom = null;
+                let currentClassKey = null;
+                let currentTeacher = null;
+                let currentRoom = null;
 
-            if (todaySchedule) {
-                for (let cls of todaySchedule.classes) {
-                    const times = cls.time.split('-');
-                    if (times.length === 2 && currentMins >= parseTime(times[0]) && currentMins <= parseTime(times[1])) {
-                        currentClassKey = cls.rawText + '|' + (cls.teacher || '') + '|' + (cls.room || '');
-                        currentTeacher = cls.teacher || cls.rawText;
-                        currentRoom = cls.room || 'No Room Info';
-                        break;
+                if (todaySchedule && todaySchedule.classes) {
+                    for (let cls of todaySchedule.classes) {
+                        const times = cls.time.split('-');
+                        if (times.length === 2 && currentMins >= parseTime(times[0]) && currentMins <= parseTime(times[1])) {
+                            currentClassKey = cls.rawText + '|' + (cls.teacher || '') + '|' + (cls.room || '');
+                            currentTeacher = cls.teacher || cls.rawText;
+                            currentRoom = cls.room || 'No Room Info';
+                            break;
+                        }
                     }
                 }
-            }
 
-            if (currentClassKey) {
-                document.getElementById('context-teacher').innerText = currentTeacher;
-                document.getElementById('context-room').innerText = currentRoom;
-                select.value = currentClassKey;
-                calculateNextLesson(currentClassKey, schedule);
-            } else {
-                document.getElementById('context-teacher').innerText = "Assigning Task";
-                document.getElementById('context-room').innerText = "Select a subject below";
-                document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
-                document.getElementById('due-date-preview').dataset.due = "";
+                if (currentClassKey) {
+                    document.getElementById('context-teacher').innerText = currentTeacher;
+                    document.getElementById('context-room').innerText = currentRoom;
+                    select.value = currentClassKey;
+                    calculateNextLesson(currentClassKey, schedule);
+                } else {
+                    document.getElementById('context-teacher').innerText = "Assigning Task";
+                    document.getElementById('context-room').innerText = "Select a subject below";
+                    document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
+                    document.getElementById('due-date-preview').dataset.due = "";
+                }
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'populateAddForm');
             }
         }
 
         document.getElementById('hw-subject').addEventListener('change', (e) => calculateNextLesson(e.target.value, JSON.parse(localStorage.getItem('schedule') || '[]')));
 
         function calculateNextLesson(classKey, schedule) {
-            if(!classKey) return;
-            const parts = classKey.split('|');
-            const subject = parts[0];
-            const teacher = parts[1];
-            
-            const now = new Date();
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            let nextDate = "Unknown";
-            let found = false;
-
-            for(let i = 1; i <= 21; i++) {
-                const checkDate = new Date(now);
-                checkDate.setDate(now.getDate() + i);
-                const checkDayName = days[checkDate.getDay()];
+            try {
+                if(!classKey) return;
+                const parts = classKey.split('|');
+                const subject = parts[0];
+                const teacher = parts[1];
                 
-                const daySchedule = getDaySchedule(checkDate, schedule);
-                if(daySchedule) {
-                    const match = daySchedule.classes.find(c => {
-                        if (teacher && c.teacher) return c.teacher === teacher; 
-                        return c.rawText === subject; 
-                    });
-                    if(match) {
-                        nextDate = `Next Lesson: ${checkDayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
-                        found = true;
-                        break;
+                const now = new Date();
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                let nextDate = "Unknown";
+                let found = false;
+
+                for(let i = 1; i <= 21; i++) {
+                    const checkDate = new Date(now);
+                    checkDate.setDate(now.getDate() + i);
+                    const checkDayName = days[checkDate.getDay()];
+                    
+                    const daySchedule = getDaySchedule(checkDate, schedule);
+                    if(daySchedule && daySchedule.classes) {
+                        const match = daySchedule.classes.find(c => {
+                            if (teacher && c.teacher) return c.teacher === teacher; 
+                            return c.rawText === subject; 
+                        });
+                        if(match) {
+                            nextDate = `Next Lesson: ${checkDayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
+                            found = true;
+                            break;
+                        }
                     }
                 }
+                if(!found) nextDate = "No lesson found in schedule";
+                document.getElementById('due-date-preview').innerText = nextDate;
+                document.getElementById('due-date-preview').dataset.due = nextDate;
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'calculateNextLesson');
             }
-            if(!found) nextDate = "No lesson found in schedule";
-            document.getElementById('due-date-preview').innerText = nextDate;
-            document.getElementById('due-date-preview').dataset.due = nextDate;
         }
 
         document.getElementById('addHwForm').addEventListener('submit', (e) => {
@@ -682,15 +742,19 @@
         });
 
         function saveTaskToDB(task) {
-            const tx = db.transaction("homework", "readwrite");
-            tx.objectStore("homework").put(task); 
-            tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Tasks'); };
+            if(!db) return triggerDebugLog("DB not initialized when saving", "saveTaskToDB");
+            try {
+                const tx = db.transaction("homework", "readwrite");
+                tx.objectStore("homework").put(task); 
+                tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Tasks'); };
+                tx.onerror = (e) => triggerDebugLog(`Transaction error: ${e.target.error}`, "saveTaskToDB");
+            } catch(err) {
+                triggerDebugLog(err.stack || err, "saveTaskToDB");
+            }
         }
 
         function parseDueDate(dueStr) {
-            // SAFETY FIX: If an old task doesn't have a due date property, do not crash the app
             if(!dueStr || typeof dueStr !== 'string') return Number.MAX_SAFE_INTEGER;
-            
             const match = dueStr.match(/(\d+)\/(\d+)/);
             if(match) {
                 const now = new Date();
@@ -704,7 +768,10 @@
         }
 
         function renderHomework() {
-            if (!db) return;
+            if (!db) {
+                triggerDebugLog("DB Object is null", "renderHomework");
+                return;
+            }
             const list = document.getElementById('homework-list');
             const historyList = document.getElementById('history-list');
             const historySection = document.getElementById('history-section');
@@ -714,26 +781,34 @@
             
             try {
                 const tx = db.transaction("homework", "readonly");
-                tx.objectStore("homework").getAll().onsuccess = e => {
-                    let tasks = e.target.result;
-                    tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id); });
+                const store = tx.objectStore("homework");
+                const req = store.getAll();
+                
+                req.onsuccess = e => {
+                    try {
+                        let tasks = e.target.result || [];
+                        tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id) || Date.now(); });
 
-                    let activeTasks = tasks.filter(t => t.status !== 'completed');
-                    if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
-                    else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
+                        let activeTasks = tasks.filter(t => t.status !== 'completed');
+                        if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
+                        else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
 
-                    const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
+                        const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
-                    if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
-                    else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
+                        if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
+                        else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
 
-                    if (completedTasks.length > 0) {
-                        historySection.style.display = 'block';
-                        completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
+                        if (completedTasks.length > 0) {
+                            historySection.style.display = 'block';
+                            completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
+                        }
+                    } catch(innerErr) {
+                        triggerDebugLog(innerErr.stack || innerErr, 'renderHomeworkDataProcessing');
                     }
                 };
+                req.onerror = e => triggerDebugLog(e.target.error, 'renderHomeworkReq');
             } catch(err) {
-                list.innerHTML = '<div style="color: var(--danger); text-align: center; padding: 20px;">Database error. Please use the trash icon to clear cache.</div>';
+                triggerDebugLog(err.stack || err, 'renderHomeworkTransaction');
             }
         }
 
@@ -749,8 +824,6 @@
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
             const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
-            
-            // Safely fetch title and badge avoiding undefined errors
             const mainTitle = task.teacher ? task.teacher : (task.subject || 'Task');
             const subjectBadge = task.teacher && task.subject ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
@@ -770,44 +843,60 @@
         }
 
         function updateTaskStatus(id, newStatus) {
-            const tx = db.transaction("homework", "readwrite");
-            const store = tx.objectStore("homework");
-            store.get(id).onsuccess = (e) => { const task = e.target.result; task.status = newStatus; store.put(task); };
-            tx.oncomplete = () => renderHomework();
+            try {
+                const tx = db.transaction("homework", "readwrite");
+                const store = tx.objectStore("homework");
+                store.get(id).onsuccess = (e) => { const task = e.target.result; task.status = newStatus; store.put(task); };
+                tx.oncomplete = () => renderHomework();
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'updateTaskStatus');
+            }
         }
 
         function hardDeleteTask(id) {
             if(confirm("Permanently delete this?")) {
-                const tx = db.transaction("homework", "readwrite");
-                tx.objectStore("homework").delete(id);
-                tx.oncomplete = () => renderHomework();
+                try {
+                    const tx = db.transaction("homework", "readwrite");
+                    tx.objectStore("homework").delete(id);
+                    tx.oncomplete = () => renderHomework();
+                } catch(err) {
+                    triggerDebugLog(err.stack || err, 'hardDeleteTask');
+                }
             }
         }
 
         function openEditModal(id) {
-            const tx = db.transaction("homework", "readonly");
-            tx.objectStore("homework").get(id).onsuccess = (e) => {
-                const task = e.target.result;
-                document.getElementById('edit-id').value = task.id;
-                document.getElementById('edit-due').value = task.due || '';
-                document.getElementById('edit-desc').value = task.desc || '';
-                document.getElementById('edit-modal').style.display = 'flex';
-            };
+            try {
+                const tx = db.transaction("homework", "readonly");
+                tx.objectStore("homework").get(id).onsuccess = (e) => {
+                    const task = e.target.result;
+                    document.getElementById('edit-id').value = task.id;
+                    document.getElementById('edit-due').value = task.due || '';
+                    document.getElementById('edit-desc').value = task.desc || '';
+                    document.getElementById('edit-modal').style.display = 'flex';
+                };
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'openEditModal');
+            }
         }
 
         function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 
         function saveEdit() {
-            const id = document.getElementById('edit-id').value;
-            const tx = db.transaction("homework", "readwrite");
-            const store = tx.objectStore("homework");
-            store.get(id).onsuccess = (e) => {
-                const task = e.target.result;
-                task.due = document.getElementById('edit-due').value;
-                task.desc = document.getElementById('edit-desc').value;
-                store.put(task);
-            };
-            tx.oncomplete = () => { closeEditModal(); renderHomework(); };
+            try {
+                const id = document.getElementById('edit-id').value;
+                const tx = db.transaction("homework", "readwrite");
+                const store = tx.objectStore("homework");
+                store.get(id).onsuccess = (e) => {
+                    const task = e.target.result;
+                    task.due = document.getElementById('edit-due').value;
+                    task.desc = document.getElementById('edit-desc').value;
+                    store.put(task);
+                };
+                tx.oncomplete = () => { closeEditModal(); renderHomework(); };
+            } catch(err) {
+                triggerDebugLog(err.stack || err, 'saveEdit');
+            }
         }
 
         function toggleCompactMode() {
@@ -824,7 +913,7 @@
         }
 
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Registration failed', err)); });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => triggerDebugLog(err.stack || err, 'SWRegistration')); });
         }
     </script>
 </body>
