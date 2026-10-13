@@ -53,8 +53,7 @@
         .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
         .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
 
-        /* Upgraded Task Cards */
-        .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; }
+        .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; position: relative; }
         .hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .hw-title-group { display: flex; flex-direction: column; gap: 4px; }
         .hw-teacher { font-size: 18px; font-weight: 800; color: var(--text-main); }
@@ -75,6 +74,16 @@
         .hw-card.completed { opacity: 0.6; border-left-color: var(--success); box-shadow: none; border: 1px solid var(--line-color); border-left: 5px solid var(--success); background: transparent; }
         .hw-card.completed .btn-complete, .hw-card.completed .btn-edit { display: none; }
         .btn-restore { background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; flex: 1; }
+
+        /* Compact Mode */
+        .compact-mode .hw-card { padding: 12px 15px; gap: 6px; border-left-width: 4px; }
+        .compact-mode .hw-teacher { font-size: 15px; }
+        .compact-mode .hw-subject-badge { padding: 2px 8px; font-size: 11px; }
+        .compact-mode .hw-due { padding: 4px 8px; font-size: 11px; }
+        .compact-mode .hw-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+        .compact-mode .hw-img { display: none; }
+        .compact-mode .hw-actions { margin-top: 4px; }
+        .compact-mode .hw-actions button { padding: 8px; font-size: 13px; }
 
         /* Edit Modal */
         #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
@@ -123,11 +132,14 @@
             <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span style="font-size: 14px; font-weight: bold; color: var(--text-muted);">Sort by:</span>
-                    <select id="feed-sort" onchange="renderHomework()" style="width: auto; padding: 8px 12px; margin-bottom: 0; min-height: auto;">
-                        <option value="due">Due Date</option>
-                        <option value="set">Date Set</option>
-                    </select>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px; font-weight: bold; color: var(--text-muted);">Sort:</span>
+                        <select id="feed-sort" onchange="renderHomework()" style="width: auto; padding: 6px 10px; margin-bottom: 0; min-height: auto; font-size: 14px;">
+                            <option value="due">Due Date</option>
+                            <option value="set">Date Set</option>
+                        </select>
+                    </div>
+                    <button id="compact-toggle" class="btn" style="width: auto; padding: 6px 12px; font-size: 14px; background: var(--text-muted);" onclick="toggleCompactMode()">📄 Compact</button>
                 </div>
                 <div id="homework-list"></div>
                 <div id="history-section" style="display: none;">
@@ -327,7 +339,6 @@
             if (daysToRender.length === 0) daysToRender = [schedule[0]]; 
 
             daysToRender.forEach(daySchedule => {
-                // Strip the literal date out of the display header so it doesn't look confusing
                 const cleanDayName = daySchedule.day.replace(/^\d+\s+/, '');
                 
                 const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; dayHeader.innerText = cleanDayName; list.appendChild(dayHeader);
@@ -379,7 +390,7 @@
                 const data = await response.json(); document.getElementById('loading').style.display = 'none';
                 if (data.success) { 
                     localStorage.setItem('schedule', JSON.stringify(data.data)); 
-                    localStorage.setItem('syncAnchor', new Date().toISOString()); // Set anchor point for perpetual calendar
+                    localStorage.setItem('syncAnchor', new Date().toISOString()); 
                     renderTimetable('today'); 
                 } 
                 else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
@@ -447,7 +458,6 @@
             let nextDate = "Unknown";
             let found = false;
 
-            // Scan up to 3 weeks ahead to find the exact teacher dynamically using perpetual math
             for(let i = 1; i <= 21; i++) {
                 const checkDate = new Date(now);
                 checkDate.setDate(now.getDate() + i);
@@ -640,6 +650,24 @@
                 store.put(task);
             };
             tx.oncomplete = () => { closeEditModal(); renderHomework(); };
+        }
+
+        // --- COMPACT MODE TOGGLE ---
+        function toggleCompactMode() {
+            const list = document.getElementById('homework-list');
+            list.classList.toggle('compact-mode');
+            const isCompact = list.classList.contains('compact-mode');
+            localStorage.setItem('compactMode', isCompact);
+            document.getElementById('compact-toggle').style.background = isCompact ? 'var(--primary)' : 'var(--text-muted)';
+        }
+
+        // Initialize Compact Mode on load
+        if (localStorage.getItem('compactMode') === 'true') {
+            document.getElementById('homework-list').classList.add('compact-mode');
+            setTimeout(() => {
+                const btn = document.getElementById('compact-toggle');
+                if (btn) btn.style.background = 'var(--primary)';
+            }, 50);
         }
 
         if ('serviceWorker' in navigator) {
