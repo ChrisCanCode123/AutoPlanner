@@ -7,14 +7,8 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <style>
-        :root { 
-            color-scheme: light;
-            --primary: #4f46e5; --bg: #f3f4f6; --card-bg: #ffffff; --text-main: #111827; --text-muted: #6b7280; --line-color: #e5e7eb; --success: #10b981; 
-        }
-        body.dark-mode { 
-            color-scheme: dark;
-            --bg: #111827; --card-bg: #1f2937; --text-main: #f9fafb; --text-muted: #9ca3af; --line-color: #374151; --success: #059669; 
-        }
+        :root { color-scheme: light; --primary: #4f46e5; --bg: #f3f4f6; --card-bg: #ffffff; --text-main: #111827; --text-muted: #6b7280; --line-color: #e5e7eb; --success: #10b981; }
+        body.dark-mode { color-scheme: dark; --bg: #111827; --card-bg: #1f2937; --text-main: #f9fafb; --text-muted: #9ca3af; --line-color: #374151; --success: #059669; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background-color 0.3s, color 0.3s; }
         body { background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -32,7 +26,6 @@
         .nav-item.active .nav-icon { opacity: 1; }
 
         input, select, textarea { width: 100%; padding: 14px; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--line-color); border-radius: 10px; font-size: 16px; margin-bottom: 12px; font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        /* Fix native date picker appearance */
         input[type="date"] { appearance: none; -webkit-appearance: none; min-height: 50px; }
         
         button.btn { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
@@ -42,7 +35,7 @@
         .spinner { width: 40px; height: 40px; border: 4px solid var(--line-color); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px auto; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        .view-toggles { display: none; gap: 10px; margin-bottom: 20px; }
+        .view-toggles { display: flex; gap: 10px; margin-bottom: 20px; }
         .toggle-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-weight: 600; cursor: pointer; text-align: center; }
         .toggle-btn.active-toggle { background: var(--primary); color: white; }
 
@@ -60,8 +53,7 @@
         .info-col { flex-grow: 1; background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--line-color); margin-left: 10px; }
         .subject { font-size: 16px; font-weight: 700; color: var(--primary); }
 
-        /* Upgraded Task Cards */
-        .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; }
+        .hw-card { display: flex; flex-direction: column; gap: 12px; border: none; border-left: 5px solid var(--primary); padding: 20px; position: relative; }
         .hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
         .hw-title-group { display: flex; flex-direction: column; gap: 4px; }
         .hw-teacher { font-size: 18px; font-weight: 800; color: var(--text-main); }
@@ -74,13 +66,18 @@
         .hw-img.expanded { width: 100%; height: auto; max-height: 400px; object-fit: contain; }
         
         .hw-actions { display: flex; gap: 12px; margin-top: 8px; }
-        .btn-complete { background: var(--success); flex: 1; padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
-        .btn-hard-delete { background: #ef4444; padding: 12px 16px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); }
+        .btn-complete { background: var(--success); flex: 1; padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-edit { background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-hard-delete { background: #ef4444; padding: 12px 16px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; }
         
         .history-header { margin-top: 30px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); border-bottom: 2px solid var(--line-color); padding-bottom: 8px; margin-bottom: 15px; font-weight: 700; }
         .hw-card.completed { opacity: 0.6; border-left-color: var(--success); box-shadow: none; border: 1px solid var(--line-color); border-left: 5px solid var(--success); background: transparent; }
-        .hw-card.completed .btn-complete { display: none; }
+        .hw-card.completed .btn-complete, .hw-card.completed .btn-edit { display: none; }
         .btn-restore { background: var(--text-muted); padding: 12px; border-radius: 8px; color: white; border: none; font-weight: bold; cursor: pointer; flex: 1; }
+
+        /* Edit Modal */
+        #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 16px; width: 100%; max-width: 400px; }
     </style>
 </head>
 <body>
@@ -96,6 +93,22 @@
         </div>
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 15px;">Edit Homework</h2>
+            <input type="hidden" id="edit-id">
+            <label style="font-size: 14px; color: var(--text-muted);">Due Date:</label>
+            <input type="text" id="edit-due" placeholder="e.g. Due: Monday, 19/10">
+            <label style="font-size: 14px; color: var(--text-muted);">Description:</label>
+            <textarea id="edit-desc" rows="4"></textarea>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn" style="background: var(--text-muted);" onclick="closeEditModal()">Cancel</button>
+                <button class="btn" onclick="saveEdit()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-container">
         <header>
             <span id="app-header-title">Dashboard</span>
@@ -108,6 +121,13 @@
         <main>
             <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 14px; font-weight: bold; color: var(--text-muted);">Sort by:</span>
+                    <select id="feed-sort" onchange="renderHomework()" style="width: auto; padding: 8px 12px; margin-bottom: 0; min-height: auto;">
+                        <option value="due">Due Date</option>
+                        <option value="set">Date Set</option>
+                    </select>
+                </div>
                 <div id="homework-list"></div>
                 <div id="history-section" style="display: none;">
                     <h2 class="history-header">History</h2>
@@ -118,23 +138,31 @@
             <!-- ADD HOMEWORK TAB -->
             <div id="tab-add" class="tab-content">
                 <div class="box">
-                    <p id="context-msg" style="color: var(--primary); font-weight: 700; margin-bottom: 15px; font-size: 18px;">Detecting class...</p>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--primary);"></div>
+                        <span id="context-msg" style="font-weight: 700; font-size: 18px; color: var(--text-main);">Detecting class...</span>
+                    </div>
+                    
                     <form id="addHwForm">
+                        <label style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block;">Subject / Teacher</label>
                         <select id="hw-subject" required>
                             <option value="">Select Subject...</option>
                         </select>
-                        <div id="due-date-preview" style="font-size: 14px; color: var(--primary); margin-bottom: 15px; font-weight: 600; background: rgba(79, 70, 229, 0.1); padding: 10px; border-radius: 8px;">
+                        
+                        <div id="due-date-preview" style="font-size: 14px; color: var(--primary); margin-bottom: 15px; font-weight: 600; background: rgba(79, 70, 229, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary);">
                             Due: Select a subject first
                         </div>
                         
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Or pick custom due date:</label>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Override Auto Date:</label>
                             <input type="date" id="custom-due-date" style="margin-bottom: 0;">
                         </div>
 
-                        <textarea id="hw-desc" placeholder="What's the homework?" rows="3" required></textarea>
-                        <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted);">Attach Photo (Optional)</label>
-                        <input type="file" id="hw-image" accept="image/*" style="padding: 10px;">
+                        <label style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block;">Homework Details (Optional if attaching image)</label>
+                        <textarea id="hw-desc" placeholder="What's the homework?" rows="3"></textarea>
+                        
+                        <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-muted);">Attach Photo</label>
+                        <input type="file" id="hw-image" accept="image/*" style="padding: 10px; background: var(--bg);">
                         <button type="submit" class="btn" style="margin-top: 15px;">Save Homework</button>
                     </form>
                 </div>
@@ -150,10 +178,11 @@
                         <button type="submit" class="btn">Download Timetable</button>
                     </form>
                 </div>
-                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing secure connection...</div></div>
-                <div id="timetable-controls" class="view-toggles">
+                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 500;">Syncing Schedule...</div></div>
+                <div id="timetable-controls" class="view-toggles" style="display: none;">
                     <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
                     <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Full Week</button>
+                    <button class="toggle-btn" style="border-color: var(--text-muted); color: var(--text-muted);" onclick="showSyncForm()">🔄 Sync</button>
                 </div>
                 <div id="timetable-list"></div>
             </div>
@@ -205,8 +234,11 @@
         });
 
         let db;
-        const request = indexedDB.open("AutoPlannerDB", 2); 
-        request.onupgradeneeded = (e) => { db = e.target.result; if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); };
+        const request = indexedDB.open("AutoPlannerDB", 3);
+        request.onupgradeneeded = (e) => { 
+            db = e.target.result; 
+            if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
+        };
         request.onsuccess = (e) => { db = e.target.result; renderHomework(); };
 
         function switchTab(tabId, headerTitle) {
@@ -223,6 +255,42 @@
         const parseTime = (timeStr) => { const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; };
         const formatTime = (mins) => { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; };
 
+        // --- PERPETUAL CALENDAR MATH ---
+        function getMonday(date) {
+            const d = new Date(date);
+            d.setHours(0,0,0,0);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            return new Date(d.setDate(diff));
+        }
+
+        function getWeekTypeIndex(targetDateStr) {
+            const anchorStr = localStorage.getItem('syncAnchor');
+            if (!anchorStr) return 0; // Fallback if missing
+            
+            const anchorMonday = getMonday(anchorStr);
+            const targetMonday = getMonday(targetDateStr);
+            
+            const diffTime = Math.abs(targetMonday - anchorMonday);
+            const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000));
+            
+            // 0 = Week A (first occurrence in saved array), 1 = Week B (second occurrence)
+            return diffWeeks % 2; 
+        }
+
+        function getDaySchedule(targetDate, scheduleArray) {
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[targetDate.getDay()];
+            const weekIndex = getWeekTypeIndex(targetDate);
+            
+            // Find all days that match the weekday name (ignores the literal date number)
+            const occurrences = scheduleArray.filter(d => d.day.includes(dayName));
+            
+            // Return Week A (index 0) or Week B (index 1). Fallback to index 0 if they only scraped 1 week.
+            return occurrences[weekIndex] || occurrences[0];
+        }
+        // -------------------------------
+
         function renderTimetable(viewType = 'today') {
             const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
             const list = document.getElementById('timetable-list');
@@ -234,17 +302,34 @@
             if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; return; }
             document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex';
 
-            let daysToRender = schedule;
+            let daysToRender = [];
+            
             if (viewType === 'today') {
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                let dayNum = new Date().getDay();
-                if (dayNum === 0 || dayNum === 6) dayNum = 1; 
-                daysToRender = schedule.filter(d => d.day.includes(days[dayNum]));
-                if (daysToRender.length === 0) daysToRender = [schedule[0]]; 
+                let targetDate = new Date();
+                let dayNum = targetDate.getDay();
+                if (dayNum === 0 || dayNum === 6) {
+                    // Skip to Monday on weekends
+                    targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
+                }
+                const sched = getDaySchedule(targetDate, schedule);
+                if (sched) daysToRender.push(sched);
+            } else {
+                // Render Monday to Friday for the current active week
+                let targetDate = getMonday(new Date());
+                for(let i=0; i<5; i++) {
+                    const sched = getDaySchedule(targetDate, schedule);
+                    if (sched) daysToRender.push(sched);
+                    targetDate.setDate(targetDate.getDate() + 1);
+                }
             }
 
+            if (daysToRender.length === 0) daysToRender = [schedule[0]]; 
+
             daysToRender.forEach(daySchedule => {
-                const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; dayHeader.innerText = daySchedule.day; list.appendChild(dayHeader);
+                // Strip the literal date out of the display header so it doesn't look confusing
+                const cleanDayName = daySchedule.day.replace(/^\d+\s+/, '');
+                
+                const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; dayHeader.innerText = cleanDayName; list.appendChild(dayHeader);
                 const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
 
                 let realClasses = daySchedule.classes.filter(c => { const end = parseTime(c.time.split('-')[1] || "23:59"); return end > 550; });
@@ -278,12 +363,24 @@
             });
         }
 
+        function showSyncForm() {
+            if(confirm("Download the latest timetable from Arbor? Your saved homework will NOT be deleted.")) {
+                document.getElementById('form-section').style.display = 'block';
+                document.getElementById('timetable-controls').style.display = 'none';
+                document.getElementById('timetable-list').innerHTML = '';
+            }
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault(); document.getElementById('form-section').style.display = 'none'; document.getElementById('loading').style.display = 'block';
             try {
                 const response = await fetch('/.netlify/functions/scrape', { method: 'POST', body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }) });
                 const data = await response.json(); document.getElementById('loading').style.display = 'none';
-                if (data.success) { localStorage.setItem('schedule', JSON.stringify(data.data)); renderTimetable('today'); } 
+                if (data.success) { 
+                    localStorage.setItem('schedule', JSON.stringify(data.data)); 
+                    localStorage.setItem('syncAnchor', new Date().toISOString()); // Set anchor point for perpetual calendar
+                    renderTimetable('today'); 
+                } 
                 else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
             } catch (error) { alert("Connection failed."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; }
         });
@@ -311,11 +408,9 @@
             });
 
             const now = new Date();
-            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const todayName = days[now.getDay()];
             const currentMins = now.getHours() * 60 + now.getMinutes();
+            let todaySchedule = getDaySchedule(now, schedule);
 
-            const todaySchedule = schedule.find(d => d.day.includes(todayName));
             let currentClassKey = null;
             let currentSubjectName = null;
 
@@ -349,21 +444,32 @@
             const now = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             let nextDate = "Unknown";
+            let found = false;
 
-            for(let i = 1; i <= 14; i++) {
+            // Scan up to 3 weeks ahead to find the exact teacher dynamically using perpetual math
+            for(let i = 1; i <= 21; i++) {
                 const checkDate = new Date(now);
                 checkDate.setDate(now.getDate() + i);
-                const dayName = days[checkDate.getDay()];
+                const checkDayName = days[checkDate.getDay()];
                 
-                const daySchedule = schedule.find(d => d.day.includes(dayName));
+                const daySchedule = getDaySchedule(checkDate, schedule);
+                
                 if(daySchedule) {
-                    const match = daySchedule.classes.find(c => c.rawText === subject && (c.teacher || '') === teacher);
+                    const match = daySchedule.classes.find(c => {
+                        if (teacher && c.teacher) return c.teacher === teacher; 
+                        return c.rawText === subject; 
+                    });
+                    
                     if(match) {
-                        nextDate = `Next Lesson: ${dayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
+                        nextDate = `Next Lesson: ${checkDayName}, ${checkDate.getDate()}/${checkDate.getMonth()+1}`;
+                        found = true;
                         break;
                     }
                 }
             }
+            
+            if(!found) nextDate = "No lesson found in schedule";
+            
             document.getElementById('due-date-preview').innerText = nextDate;
             document.getElementById('due-date-preview').dataset.due = nextDate;
         }
@@ -371,6 +477,12 @@
         document.getElementById('addHwForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const file = document.getElementById('hw-image').files[0];
+            const desc = document.getElementById('hw-desc').value;
+            
+            if(!file && !desc.trim()) {
+                alert("Please add a description or attach a photo.");
+                return;
+            }
             
             const customDateInput = document.getElementById('custom-due-date').value;
             let finalDueDate = document.getElementById('due-date-preview').dataset.due || 'Next Lesson';
@@ -387,9 +499,10 @@
 
             const task = {
                 id: Date.now().toString(),
+                dateSet: Date.now(),
                 subject: displaySubject,
                 teacher: teacherName,
-                desc: document.getElementById('hw-desc').value,
+                desc: desc,
                 due: finalDueDate,
                 status: 'active',
                 image: null
@@ -408,18 +521,42 @@
             tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Dashboard'); };
         }
 
+        function parseDueDate(dueStr) {
+            const match = dueStr.match(/(\d+)\/(\d+)/);
+            if(match) {
+                const now = new Date();
+                let year = now.getFullYear();
+                let month = parseInt(match[2]) - 1; 
+                let date = parseInt(match[1]);
+                if (month < now.getMonth()) year++;
+                return new Date(year, month, date).getTime();
+            }
+            return Number.MAX_SAFE_INTEGER;
+        }
+
         function renderHomework() {
             if (!db) return;
             const list = document.getElementById('homework-list');
             const historyList = document.getElementById('history-list');
             const historySection = document.getElementById('history-section');
+            const sortMethod = document.getElementById('feed-sort').value;
             
             list.innerHTML = ''; historyList.innerHTML = ''; historySection.style.display = 'none';
             
             const tx = db.transaction("homework", "readonly");
             tx.objectStore("homework").getAll().onsuccess = e => {
-                const tasks = e.target.result;
-                const activeTasks = tasks.filter(t => t.status !== 'completed').sort((a,b) => b.id - a.id);
+                let tasks = e.target.result;
+                
+                tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id); });
+
+                let activeTasks = tasks.filter(t => t.status !== 'completed');
+                
+                if (sortMethod === 'due') {
+                    activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
+                } else {
+                    activeTasks.sort((a,b) => b.dateSet - a.dateSet);
+                }
+
                 const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
                 if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px;">No pending homework.<br>You are all caught up!</div>';
@@ -439,11 +576,12 @@
             let actionBtns = isHistory 
                 ? `<button class="btn-restore" onclick="updateTaskStatus('${task.id}', 'active')">Restore</button>` 
                 : `<button class="btn-complete" onclick="updateTaskStatus('${task.id}', 'completed')">Complete</button>
+                   <button class="btn-edit" onclick="openEditModal('${task.id}')">Edit</button>
                    <button class="btn-hard-delete" onclick="hardDeleteTask('${task.id}')">Delete</button>`;
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
+            const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
             
-            // Prioritize teacher name. Fallback to subject if no teacher is known.
             const mainTitle = task.teacher ? task.teacher : task.subject;
             const subjectBadge = task.teacher ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
@@ -455,7 +593,7 @@
                     </div>
                     <span class="hw-due">${task.due}</span>
                 </div>
-                <div class="hw-desc">${task.desc}</div>
+                ${descHTML}
                 ${imageHTML}
                 <div class="hw-actions">${actionBtns}</div>
             `;
@@ -475,6 +613,32 @@
                 tx.objectStore("homework").delete(id);
                 tx.oncomplete = () => renderHomework();
             }
+        }
+
+        function openEditModal(id) {
+            const tx = db.transaction("homework", "readonly");
+            tx.objectStore("homework").get(id).onsuccess = (e) => {
+                const task = e.target.result;
+                document.getElementById('edit-id').value = task.id;
+                document.getElementById('edit-due').value = task.due;
+                document.getElementById('edit-desc').value = task.desc;
+                document.getElementById('edit-modal').style.display = 'flex';
+            };
+        }
+
+        function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+
+        function saveEdit() {
+            const id = document.getElementById('edit-id').value;
+            const tx = db.transaction("homework", "readwrite");
+            const store = tx.objectStore("homework");
+            store.get(id).onsuccess = (e) => {
+                const task = e.target.result;
+                task.due = document.getElementById('edit-due').value;
+                task.desc = document.getElementById('edit-desc').value;
+                store.put(task);
+            };
+            tx.oncomplete = () => { closeEditModal(); renderHomework(); };
         }
 
         if ('serviceWorker' in navigator) {
