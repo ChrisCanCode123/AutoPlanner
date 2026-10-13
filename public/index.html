@@ -122,8 +122,8 @@
 
         /* SMART BARS */
         .smart-bar { display: none; position: fixed; left: 16px; right: 16px; background: var(--primary); color: white; padding: 16px; border-radius: var(--radius-md); z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,0.15); align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.2); }
-        #current-lesson-bar { top: 75px; } /* Shows Current Lesson */
-        #next-lesson-bar { bottom: 85px; } /* Shows Upcoming Lesson */
+        #current-lesson-bar { top: 75px; } 
+        #next-lesson-bar { bottom: 85px; } 
         
         .smart-title { font-size: 18px; font-weight: 800; }
         .smart-room { font-size: 14px; opacity: 0.9; font-weight: 600; margin-top: 2px; }
@@ -442,10 +442,9 @@
             if (daysToRender.length === 0) return; 
 
             daysToRender.forEach(daySchedule => {
-                const cleanDayName = daySchedule.day.replace(/^\d+\s+/, '');
+                const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, '');
                 const dayHeader = document.createElement('div'); 
                 dayHeader.className = 'day-header'; 
-                // Insert explicit Week A / Week B label next to the day
                 dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: none;">(${daySchedule.weekLabel})</span>`;
                 list.appendChild(dayHeader);
                 
@@ -566,19 +565,21 @@
             select.innerHTML = '<option value="">Select...</option>';
             document.getElementById('custom-due-date').value = '';
             
-            const classTypes = [];
+            // Collect unique dropdown options to prevent duplicates
+            const uniqueOptions = [];
             schedule.forEach(d => {
                 d.classes.forEach(c => {
                     if (c.isFree) return;
-                    const key = c.rawText + '|' + (c.teacher || '') + '|' + (c.room || '');
-                    if (!classTypes.find(ct => ct.key === key)) classTypes.push({ key, subject: c.rawText, teacher: c.teacher || '', room: c.room || '' });
+                    let label = c.teacher ? c.teacher : c.rawText;
+                    let key = c.rawText + '|' + (c.teacher || '') + '|' + (c.room || '');
+                    if (!uniqueOptions.find(o => o.label === label)) {
+                        uniqueOptions.push({ label, key });
+                    }
                 });
             });
 
-            classTypes.forEach(ct => {
-                // Modified per request: dropdown now ONLY shows Teacher Name (fallback to subject if blank)
-                let label = ct.teacher ? ct.teacher : ct.subject;
-                select.innerHTML += `<option value="${ct.key}">${label}</option>`;
+            uniqueOptions.forEach(opt => {
+                select.innerHTML += `<option value="${opt.key}">${opt.label}</option>`;
             });
 
             const now = new Date();
@@ -687,6 +688,9 @@
         }
 
         function parseDueDate(dueStr) {
+            // SAFETY FIX: If an old task doesn't have a due date property, do not crash the app
+            if(!dueStr || typeof dueStr !== 'string') return Number.MAX_SAFE_INTEGER;
+            
             const match = dueStr.match(/(\d+)\/(\d+)/);
             if(match) {
                 const now = new Date();
@@ -708,25 +712,29 @@
             
             list.innerHTML = ''; historyList.innerHTML = ''; historySection.style.display = 'none';
             
-            const tx = db.transaction("homework", "readonly");
-            tx.objectStore("homework").getAll().onsuccess = e => {
-                let tasks = e.target.result;
-                tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id); });
+            try {
+                const tx = db.transaction("homework", "readonly");
+                tx.objectStore("homework").getAll().onsuccess = e => {
+                    let tasks = e.target.result;
+                    tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id); });
 
-                let activeTasks = tasks.filter(t => t.status !== 'completed');
-                if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
-                else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
+                    let activeTasks = tasks.filter(t => t.status !== 'completed');
+                    if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
+                    else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
 
-                const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
+                    const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
-                if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
-                else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
+                    if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
+                    else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
 
-                if (completedTasks.length > 0) {
-                    historySection.style.display = 'block';
-                    completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
-                }
-            };
+                    if (completedTasks.length > 0) {
+                        historySection.style.display = 'block';
+                        completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
+                    }
+                };
+            } catch(err) {
+                list.innerHTML = '<div style="color: var(--danger); text-align: center; padding: 20px;">Database error. Please use the trash icon to clear cache.</div>';
+            }
         }
 
         function createTaskCard(task, isHistory) {
@@ -741,8 +749,10 @@
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
             const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
-            const mainTitle = task.teacher ? task.teacher : task.subject;
-            const subjectBadge = task.teacher ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
+            
+            // Safely fetch title and badge avoiding undefined errors
+            const mainTitle = task.teacher ? task.teacher : (task.subject || 'Task');
+            const subjectBadge = task.teacher && task.subject ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
             card.innerHTML = `
                 <div class="hw-header">
@@ -750,7 +760,7 @@
                         <span class="hw-teacher">${mainTitle}</span>
                         ${subjectBadge}
                     </div>
-                    <span class="hw-due">${task.due}</span>
+                    <span class="hw-due">${task.due || 'No Due Date'}</span>
                 </div>
                 ${descHTML}
                 ${imageHTML}
@@ -779,8 +789,8 @@
             tx.objectStore("homework").get(id).onsuccess = (e) => {
                 const task = e.target.result;
                 document.getElementById('edit-id').value = task.id;
-                document.getElementById('edit-due').value = task.due;
-                document.getElementById('edit-desc').value = task.desc;
+                document.getElementById('edit-due').value = task.due || '';
+                document.getElementById('edit-desc').value = task.desc || '';
                 document.getElementById('edit-modal').style.display = 'flex';
             };
         }
