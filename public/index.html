@@ -120,13 +120,25 @@
         .compact-mode .action-icon-btn { width: 36px; height: 36px; }
         .compact-mode .action-icon-btn svg { width: 16px; height: 16px; }
 
-        .smart-bar { display: none; position: fixed; left: 16px; right: 16px; background: var(--primary); color: white; padding: 16px; border-radius: var(--radius-md); z-index: 99; box-shadow: 0 8px 24px rgba(0,0,0,0.15); align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.2); }
-        #current-lesson-bar { top: 75px; } 
-        #next-lesson-bar { bottom: 85px; } 
-        
-        .smart-title { font-size: 18px; font-weight: 800; }
-        .smart-room { font-size: 14px; opacity: 0.9; font-weight: 600; margin-top: 2px; }
-        .smart-status { font-size: 12px; font-weight: 800; text-transform: uppercase; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; }
+        /* Tiny Countdown Pill */
+        #countdown-pill {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--danger);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            z-index: 99;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            white-space: nowrap;
+            letter-spacing: 0.5px;
+            align-items: center;
+        }
 
         .input-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         
@@ -147,21 +159,10 @@
         </div>
     </div>
 
-    <!-- Smart Bars -->
-    <div id="current-lesson-bar" class="smart-bar">
-        <div>
-            <div class="smart-title" id="cl-title">Teacher</div>
-            <div class="smart-room" id="cl-room">Room</div>
-        </div>
-        <div class="smart-status" id="cl-status">NOW</div>
-    </div>
-
-    <div id="next-lesson-bar" class="smart-bar">
-        <div>
-            <div class="smart-title" id="nl-title">Teacher</div>
-            <div class="smart-room" id="nl-room">Room</div>
-        </div>
-        <div class="smart-status" id="nl-status">IN 5M</div>
+    <!-- Tiny Countdown Pill -->
+    <div id="countdown-pill">
+        <span id="cd-subject" style="opacity: 0.9; margin-right: 4px;"></span>
+        <span id="cd-time" style="font-variant-numeric: tabular-nums;"></span>
     </div>
 
     <div id="edit-modal">
@@ -347,8 +348,7 @@
         function unlockApp() { 
             document.getElementById('auth-screen').style.display = 'none'; 
             document.getElementById('app-container').style.display = 'flex'; 
-            checkUpcomingLesson(); 
-            setInterval(checkUpcomingLesson, 60000); 
+            startCountdown();
         }
         checkAccess();
 
@@ -497,64 +497,70 @@
             }
         }
 
-        // --- DUAL SMART BARS ---
-        function checkUpcomingLesson() {
-            try {
-                const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-                if (schedule.length === 0) return;
+        // --- TINY TICKING COUNTDOWN ---
+        let countdownInterval = null;
 
-                const now = new Date();
-                const currentMins = now.getHours() * 60 + now.getMinutes();
-                let todaySchedule = getDaySchedule(now, schedule);
-                
-                const topBar = document.getElementById('current-lesson-bar');
-                const bottomBar = document.getElementById('next-lesson-bar');
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            function update() {
+                try {
+                    const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+                    const pill = document.getElementById('countdown-pill');
+                    
+                    if (schedule.length === 0) { pill.style.display = 'none'; return; }
 
-                // CRITICAL SAFETY FIX: Ensure classes array exists to prevent crash
-                if (!todaySchedule || !Array.isArray(todaySchedule.classes)) { 
-                    if(topBar) topBar.style.display = 'none'; 
-                    if(bottomBar) bottomBar.style.display = 'none'; 
-                    return; 
-                }
-
-                let currentLesson = null;
-                let nextLesson = null;
-                let timeToNext = 0;
-
-                for (let cls of todaySchedule.classes) {
-                    if (cls.rawText === "Free Period") continue;
-                    const times = cls.time.split('-');
-                    if (times.length !== 2) continue;
-                    const start = parseTime(times[0]);
-                    const end = parseTime(times[1]);
-
-                    if (currentMins >= start && currentMins <= end) {
-                        currentLesson = cls;
-                    } else if (start > currentMins && start - currentMins <= 5) {
-                        nextLesson = cls;
-                        timeToNext = start - currentMins;
+                    const now = new Date();
+                    const currentMins = now.getHours() * 60 + now.getMinutes();
+                    let todaySchedule = getDaySchedule(now, schedule);
+                    
+                    if (!todaySchedule || !Array.isArray(todaySchedule.classes)) { 
+                        pill.style.display = 'none'; return; 
                     }
-                }
 
-                if (currentLesson) {
-                    document.getElementById('cl-title').innerText = currentLesson.teacher || currentLesson.rawText;
-                    document.getElementById('cl-room').innerText = currentLesson.room ? `Room ${currentLesson.room}` : currentLesson.rawText;
-                    topBar.style.display = 'flex';
-                } else {
-                    topBar.style.display = 'none';
-                }
+                    let nextLesson = null;
 
-                if (nextLesson) {
-                    document.getElementById('nl-title').innerText = nextLesson.teacher || nextLesson.rawText;
-                    document.getElementById('nl-room').innerText = nextLesson.room ? `Room ${nextLesson.room}` : nextLesson.rawText;
-                    document.getElementById('nl-status').innerText = timeToNext === 0 ? 'SOON' : `IN ${timeToNext}M`;
-                    bottomBar.style.display = 'flex';
-                } else {
-                    bottomBar.style.display = 'none';
+                    for (let cls of todaySchedule.classes) {
+                        if (cls.rawText === "Free Period") continue;
+                        const times = cls.time.split('-');
+                        if (times.length !== 2) continue;
+                        const start = parseTime(times[0]);
+
+                        // Find the first lesson that hasn't started yet
+                        if (start > currentMins) {
+                            nextLesson = { ...cls, startMins: start };
+                            break;
+                        }
+                    }
+
+                    if (nextLesson) {
+                        const startHours = Math.floor(nextLesson.startMins / 60);
+                        const startMins = nextLesson.startMins % 60;
+                        const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHours, startMins, 0).getTime();
+                        const diffSecs = Math.floor((targetTime - Date.now()) / 1000);
+                        
+                        if (diffSecs <= 0) return; 
+
+                        const h = Math.floor(diffSecs / 3600);
+                        const m = Math.floor((diffSecs % 3600) / 60);
+                        const s = diffSecs % 60;
+                        
+                        let timeStr = '';
+                        if (h > 0) timeStr += `${h}h `;
+                        timeStr += `${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+
+                        document.getElementById('cd-subject').innerText = (nextLesson.teacher || nextLesson.rawText);
+                        document.getElementById('cd-time').innerText = timeStr;
+                        pill.style.display = 'flex';
+                    } else {
+                        pill.style.display = 'none';
+                    }
+                } catch(err) {
+                    console.error(err);
                 }
-            } catch(err) {
-                console.error(err);
             }
+            update();
+            countdownInterval = setInterval(update, 1000);
         }
 
         function showSyncForm() {
@@ -574,7 +580,7 @@
                     localStorage.setItem('schedule', JSON.stringify(data.data)); 
                     localStorage.setItem('syncAnchor', new Date().toISOString()); 
                     renderTimetable('today'); 
-                    checkUpcomingLesson();
+                    startCountdown();
                 } 
                 else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
             } catch (error) { 
