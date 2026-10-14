@@ -144,10 +144,6 @@
         
         #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card-bg); padding: 24px; border-radius: var(--radius-md); width: 100%; max-width: 400px; border: 1px solid var(--line-color); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
-
-        /* MASSIVE DEBUG LOGGER */
-        #debug-logger { display: none; background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 16px; color: #991b1b; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; max-height: 250px; overflow-y: auto; position: relative; z-index: 9999; }
-        #debug-logger strong { color: #7f1d1d; font-size: 14px; display: block; margin-bottom: 6px; }
     </style>
 </head>
 <body>
@@ -201,9 +197,6 @@
         </header>
 
         <main>
-            <!-- DIAGNOSTIC LOGGER -->
-            <div id="debug-logger"><strong>ERROR DETECTED</strong><span id="debug-text"></span></div>
-
             <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -302,125 +295,16 @@
     </div>
 
     <script>
-        // --- GLOBAL ERROR LOGGER ---
-        function triggerDebugLog(message, source) {
-            const logger = document.getElementById('debug-logger');
-            const text = document.getElementById('debug-text');
-            logger.style.display = 'block';
-            text.innerText += `\n[${new Date().toLocaleTimeString()}] ${source}: ${message}\n---`;
-        }
-
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            triggerDebugLog(`${msg} \nLine: ${lineNo}:${columnNo} \nStack: ${error ? error.stack : 'N/A'}`, 'WindowError');
-            return false;
-        };
-
-        window.onunhandledrejection = function(event) {
-            triggerDebugLog(`Promise Rejection: ${event.reason}`, 'PromiseError');
-        };
-
-        // --- THEME & COLOR SWAPPER ---
-        const moonIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
-        const sunIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-
+        // --- GLOBAL VARIABLES (MOVED TO TOP TO PREVENT HOISTING ERRORS) ---
+        let db;
+        let countdownInterval = null;
         const themes = ['', 'theme-emerald', 'theme-rose', 'theme-amber', 'theme-amethyst'];
         let currentThemeIdx = parseInt(localStorage.getItem('colorThemeIdx') || '0');
 
-        function applyColorTheme() {
-            themes.forEach(t => t && document.body.classList.remove(t));
-            if (themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
-        }
-        applyColorTheme();
+        const moonIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        const sunIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
 
-        function cycleTheme() {
-            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
-            localStorage.setItem('colorThemeIdx', currentThemeIdx);
-            applyColorTheme();
-        }
-
-        function updateThemeIcon() {
-            const toggle = document.getElementById('theme-toggle');
-            if (document.body.classList.contains('dark-mode')) toggle.innerHTML = sunIcon;
-            else toggle.innerHTML = moonIcon;
-        }
-
-        const themeToggle = document.getElementById('theme-toggle');
-        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(); }
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-            updateThemeIcon();
-        });
-
-        function checkAccess() {
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-            if (isStandalone) {
-                if (localStorage.getItem('appUnlocked') === 'true') unlockApp();
-                else { document.getElementById('auth-message').style.display = 'none'; document.getElementById('auth-prompt').style.display = 'block'; }
-            } else {
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('pin') === '5566') {
-                    const msg = document.getElementById('auth-message');
-                    msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted); margin-top: 10px; display:block;'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
-                    msg.style.color = "var(--text-main)";
-                } else { document.getElementById('auth-message').innerText = "Access Denied."; document.getElementById('auth-message').style.color = "var(--danger)"; }
-            }
-        }
-        
-        function checkAppPin() {
-            if (document.getElementById('app-pin-input').value === '7788') { localStorage.setItem('appUnlocked', 'true'); unlockApp(); }
-            else document.getElementById('auth-error').style.display = 'block';
-        }
-        
-        function unlockApp() { 
-            document.getElementById('auth-screen').style.display = 'none'; 
-            document.getElementById('app-container').style.display = 'flex'; 
-            startCountdown();
-        }
-        
-        checkAccess();
-
-        function clearAllData() {
-            if (confirm("Are you sure you want to delete all saved tasks and schedule data?")) {
-                localStorage.clear();
-                const req = indexedDB.deleteDatabase("AutoPlannerDB");
-                req.onsuccess = () => location.reload();
-                req.onerror = (e) => triggerDebugLog(`Failed to delete DB: ${e.target.error}`, "clearAllData");
-            }
-        }
-
-        let db;
-        try {
-            const request = indexedDB.open("AutoPlannerDB", 3);
-            request.onupgradeneeded = (e) => { 
-                db = e.target.result; 
-                if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
-            };
-            request.onsuccess = (e) => { 
-                db = e.target.result; 
-                renderHomework(); 
-            };
-            request.onerror = (e) => triggerDebugLog(`IndexedDB Open Error: ${e.target.error}`, 'DBInit');
-        } catch(err) {
-            triggerDebugLog(err.stack || err, 'DBTryCatch');
-        }
-
-        function switchTab(tabId, headerTitle) {
-            try {
-                document.getElementById('app-header-title').innerText = headerTitle;
-                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-                document.getElementById('tab-' + tabId).classList.add('active');
-                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-                if(event && event.currentTarget) event.currentTarget.classList.add('active');
-                
-                if(tabId === 'add') populateAddForm();
-                if(tabId === 'dashboard') renderHomework();
-                if(tabId === 'timetable') renderTimetable('today');
-            } catch(err) {
-                triggerDebugLog(err.stack || err, 'switchTab');
-            }
-        }
-
+        // --- CORE FUNCTIONS DEFINED FIRST ---
         const parseTime = (timeStr) => { 
             try {
                 const [h, m] = (timeStr || "0:0").split(':').map(Number); return (h * 60) + m; 
@@ -428,6 +312,7 @@
                 return 0;
             }
         };
+        
         const formatTime = (mins) => { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; };
 
         function getMonday(date) {
@@ -454,6 +339,164 @@
             const weekIndex = getWeekTypeIndex(targetDate);
             const occurrences = scheduleArray.filter(d => d.day && d.day.includes(dayName));
             return occurrences[weekIndex] || occurrences[0];
+        }
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            function update() {
+                try {
+                    const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+                    const pill = document.getElementById('countdown-pill');
+                    if (!pill) return; 
+                    
+                    if (schedule.length === 0) { pill.style.display = 'none'; return; }
+
+                    const now = new Date();
+                    const currentMins = now.getHours() * 60 + now.getMinutes();
+                    let todaySchedule = getDaySchedule(now, schedule);
+                    
+                    if (!todaySchedule || !Array.isArray(todaySchedule.classes)) { 
+                        pill.style.display = 'none'; return; 
+                    }
+
+                    let nextLesson = null;
+
+                    for (let cls of todaySchedule.classes) {
+                        if (!cls.time || cls.rawText === "Free Period") continue;
+                        const times = cls.time.split('-');
+                        if (times.length !== 2) continue;
+                        const start = parseTime(times[0]);
+
+                        if (start > currentMins) {
+                            nextLesson = { ...cls, startMins: start };
+                            break;
+                        }
+                    }
+
+                    if (nextLesson) {
+                        const startHours = Math.floor(nextLesson.startMins / 60);
+                        const startMins = nextLesson.startMins % 60;
+                        const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHours, startMins, 0).getTime();
+                        const diffSecs = Math.floor((targetTime - Date.now()) / 1000);
+                        
+                        if (diffSecs <= 0) return; 
+
+                        const h = Math.floor(diffSecs / 3600);
+                        const m = Math.floor((diffSecs % 3600) / 60);
+                        const s = diffSecs % 60;
+                        
+                        let timeStr = '';
+                        if (h > 0) timeStr += `${h}h `;
+                        timeStr += `${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+
+                        document.getElementById('cd-subject').innerText = (nextLesson.teacher || nextLesson.rawText);
+                        document.getElementById('cd-time').innerText = timeStr;
+                        pill.style.display = 'flex';
+                    } else {
+                        pill.style.display = 'none';
+                    }
+                } catch(err) {
+                    console.error("Countdown Error:", err);
+                }
+            }
+            update();
+            countdownInterval = setInterval(update, 1000);
+        }
+
+        // --- AUTH & INITIALIZATION ---
+        function applyColorTheme() {
+            themes.forEach(t => t && document.body.classList.remove(t));
+            if (themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
+        }
+        applyColorTheme();
+
+        function cycleTheme() {
+            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+            localStorage.setItem('colorThemeIdx', currentThemeIdx);
+            applyColorTheme();
+        }
+
+        function updateThemeIcon() {
+            const toggle = document.getElementById('theme-toggle');
+            if (document.body.classList.contains('dark-mode')) toggle.innerHTML = sunIcon;
+            else toggle.innerHTML = moonIcon;
+        }
+
+        const themeToggle = document.getElementById('theme-toggle');
+        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(); }
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+            updateThemeIcon();
+        });
+
+        function unlockApp() { 
+            document.getElementById('auth-screen').style.display = 'none'; 
+            document.getElementById('app-container').style.display = 'flex'; 
+            startCountdown();
+        }
+
+        function checkAccess() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (isStandalone) {
+                if (localStorage.getItem('appUnlocked') === 'true') unlockApp();
+                else { document.getElementById('auth-message').style.display = 'none'; document.getElementById('auth-prompt').style.display = 'block'; }
+            } else {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('pin') === '5566') {
+                    const msg = document.getElementById('auth-message');
+                    msg.innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted); margin-top: 10px; display:block;'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
+                    msg.style.color = "var(--text-main)";
+                } else { document.getElementById('auth-message').innerText = "Access Denied."; document.getElementById('auth-message').style.color = "var(--danger)"; }
+            }
+        }
+        
+        function checkAppPin() {
+            if (document.getElementById('app-pin-input').value === '7788') { localStorage.setItem('appUnlocked', 'true'); unlockApp(); }
+            else document.getElementById('auth-error').style.display = 'block';
+        }
+        
+        // Start Auth Check
+        checkAccess();
+
+        // --- DATABASE & APP LOGIC ---
+        function clearAllData() {
+            if (confirm("Are you sure you want to delete all saved tasks and schedule data?")) {
+                localStorage.clear();
+                const req = indexedDB.deleteDatabase("AutoPlannerDB");
+                req.onsuccess = () => location.reload();
+            }
+        }
+
+        try {
+            const request = indexedDB.open("AutoPlannerDB", 3);
+            request.onupgradeneeded = (e) => { 
+                db = e.target.result; 
+                if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
+            };
+            request.onsuccess = (e) => { 
+                db = e.target.result; 
+                renderHomework(); 
+            };
+        } catch(err) {
+            console.error("DB Initialization Error:", err);
+        }
+
+        function switchTab(tabId, headerTitle) {
+            try {
+                document.getElementById('app-header-title').innerText = headerTitle;
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                document.getElementById('tab-' + tabId).classList.add('active');
+                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+                if(event && event.currentTarget) event.currentTarget.classList.add('active');
+                
+                if(tabId === 'add') populateAddForm();
+                if(tabId === 'dashboard') renderHomework();
+                if(tabId === 'timetable') renderTimetable('today');
+            } catch(err) {
+                console.error("Tab Switch Error:", err);
+            }
         }
 
         function renderTimetable(viewType = 'today') {
@@ -535,74 +578,16 @@
                     list.appendChild(dayTimeline);
                 });
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'renderTimetable');
+                console.error("Timetable Render Error:", err);
             }
         }
 
-        // --- TINY TICKING COUNTDOWN ---
-        let countdownInterval = null;
-
-        function startCountdown() {
-            if (countdownInterval) clearInterval(countdownInterval);
-            
-            function update() {
-                try {
-                    const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-                    const pill = document.getElementById('countdown-pill');
-                    if (!pill) return; // safeguard if html is missing
-                    
-                    if (schedule.length === 0) { pill.style.display = 'none'; return; }
-
-                    const now = new Date();
-                    const currentMins = now.getHours() * 60 + now.getMinutes();
-                    let todaySchedule = getDaySchedule(now, schedule);
-                    
-                    if (!todaySchedule || !Array.isArray(todaySchedule.classes)) { 
-                        pill.style.display = 'none'; return; 
-                    }
-
-                    let nextLesson = null;
-
-                    for (let cls of todaySchedule.classes) {
-                        if (!cls.time || cls.rawText === "Free Period") continue;
-                        const times = cls.time.split('-');
-                        if (times.length !== 2) continue;
-                        const start = parseTime(times[0]);
-
-                        if (start > currentMins) {
-                            nextLesson = { ...cls, startMins: start };
-                            break;
-                        }
-                    }
-
-                    if (nextLesson) {
-                        const startHours = Math.floor(nextLesson.startMins / 60);
-                        const startMins = nextLesson.startMins % 60;
-                        const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHours, startMins, 0).getTime();
-                        const diffSecs = Math.floor((targetTime - Date.now()) / 1000);
-                        
-                        if (diffSecs <= 0) return; 
-
-                        const h = Math.floor(diffSecs / 3600);
-                        const m = Math.floor((diffSecs % 3600) / 60);
-                        const s = diffSecs % 60;
-                        
-                        let timeStr = '';
-                        if (h > 0) timeStr += `${h}h `;
-                        timeStr += `${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
-
-                        document.getElementById('cd-subject').innerText = (nextLesson.teacher || nextLesson.rawText);
-                        document.getElementById('cd-time').innerText = timeStr;
-                        pill.style.display = 'flex';
-                    } else {
-                        pill.style.display = 'none';
-                    }
-                } catch(err) {
-                    triggerDebugLog(err.stack || err, 'startCountdown');
-                }
+        function showSyncForm() {
+            if(confirm("Download the latest timetable from Arbor? Your saved tasks will NOT be deleted.")) {
+                document.getElementById('form-section').style.display = 'block';
+                document.getElementById('timetable-controls').style.display = 'none';
+                document.getElementById('timetable-list').innerHTML = '';
             }
-            update();
-            countdownInterval = setInterval(update, 1000);
         }
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -619,7 +604,6 @@
                 else { alert("Error: " + data.error); document.getElementById('form-section').style.display = 'block'; }
             } catch (error) { 
                 alert("Connection failed."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; 
-                triggerDebugLog(error.stack || error, 'SyncFormFetch');
             }
         });
 
@@ -680,7 +664,7 @@
                     document.getElementById('due-date-preview').dataset.due = "";
                 }
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'populateAddForm');
+                console.error("Add Form Error:", err);
             }
         }
 
@@ -720,7 +704,7 @@
                 document.getElementById('due-date-preview').innerText = nextDate;
                 document.getElementById('due-date-preview').dataset.due = nextDate;
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'calculateNextLesson');
+                console.error("Next Lesson Calc Error:", err);
             }
         }
 
@@ -755,14 +739,13 @@
         });
 
         function saveTaskToDB(task) {
-            if(!db) return triggerDebugLog("DB not initialized when saving", "saveTaskToDB");
+            if(!db) return console.error("Database not ready.");
             try {
                 const tx = db.transaction("homework", "readwrite");
                 tx.objectStore("homework").put(task); 
                 tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Tasks'); };
-                tx.onerror = (e) => triggerDebugLog(`Transaction error: ${e.target.error}`, "saveTaskToDB");
             } catch(err) {
-                triggerDebugLog(err.stack || err, "saveTaskToDB");
+                console.error("Save Task Error:", err);
             }
         }
 
@@ -781,7 +764,7 @@
         }
 
         function renderHomework() {
-            if (!db) return triggerDebugLog("DB Object is null", "renderHomework");
+            if (!db) return;
             const list = document.getElementById('homework-list');
             const historyList = document.getElementById('history-list');
             const historySection = document.getElementById('history-section');
@@ -813,12 +796,11 @@
                             completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
                         }
                     } catch(innerErr) {
-                        triggerDebugLog(innerErr.stack || innerErr, 'renderHomeworkDataProcessing');
+                        console.error("Render Tasks Process Error:", innerErr);
                     }
                 };
-                req.onerror = e => triggerDebugLog(e.target.error, 'renderHomeworkReq');
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'renderHomeworkTransaction');
+                console.error("Render Tasks DB Error:", err);
             }
         }
 
@@ -834,6 +816,7 @@
             
             const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
             const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
+            
             const mainTitle = task.teacher ? task.teacher : (task.subject || 'Task');
             const subjectBadge = task.teacher && task.subject ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
@@ -859,7 +842,7 @@
                 store.get(id).onsuccess = (e) => { const task = e.target.result; task.status = newStatus; store.put(task); };
                 tx.oncomplete = () => renderHomework();
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'updateTaskStatus');
+                console.error(err);
             }
         }
 
@@ -870,7 +853,7 @@
                     tx.objectStore("homework").delete(id);
                     tx.oncomplete = () => renderHomework();
                 } catch(err) {
-                    triggerDebugLog(err.stack || err, 'hardDeleteTask');
+                    console.error(err);
                 }
             }
         }
@@ -886,7 +869,7 @@
                     document.getElementById('edit-modal').style.display = 'flex';
                 };
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'openEditModal');
+                console.error(err);
             }
         }
 
@@ -905,7 +888,7 @@
                 };
                 tx.oncomplete = () => { closeEditModal(); renderHomework(); };
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'saveEdit');
+                console.error(err);
             }
         }
 
@@ -917,7 +900,7 @@
                 localStorage.setItem('compactMode', isCompact);
                 document.getElementById('compact-toggle').classList.toggle('active-toggle', isCompact);
             } catch(err) {
-                triggerDebugLog(err.stack || err, 'toggleCompactMode');
+                console.error(err);
             }
         }
 
@@ -927,7 +910,7 @@
         }
 
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => triggerDebugLog(err.stack || err, 'SWRegistration')); });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(err => console.log(err)); });
         }
     </script>
 </body>
