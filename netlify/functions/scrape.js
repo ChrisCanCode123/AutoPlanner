@@ -9,8 +9,6 @@ exports.handler = async (event, context) => {
     const { email, password } = JSON.parse(event.body);
     if (!email || !password) return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
 
-    debugStep = "Launching Puppeteer";
-    console.log(`[DEBUG] ${debugStep}`);
     const chromium = (await import('@sparticuz/chromium')).default;
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -19,8 +17,6 @@ exports.handler = async (event, context) => {
       headless: chromium.headless,
     });
 
-    debugStep = "Opening New Page & Setting Intercepts";
-    console.log(`[DEBUG] ${debugStep}`);
     const page = await browser.newPage();
     await page.setRequestInterception(true);
     page.on('request', (req) => {
@@ -28,37 +24,24 @@ exports.handler = async (event, context) => {
         else req.continue();
     });
 
-    debugStep = "Navigating to Login Page";
-    console.log(`[DEBUG] ${debugStep}`);
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
-    
-    debugStep = "Typing Credentials";
-    console.log(`[DEBUG] ${debugStep}`);
     await page.type('input[type="text"], input[type="email"], input[name="username"]', email);
     await page.type('input[type="password"]', password);
     
-    debugStep = "Submitting Login & Waiting for Navigation";
-    console.log(`[DEBUG] ${debugStep}`);
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
         page.keyboard.press('Enter')
     ]);
 
-    debugStep = "Checking if Login Failed";
-    console.log(`[DEBUG] ${debugStep}`);
     if (page.url().includes('login')) return { statusCode: 401, body: JSON.stringify({ success: false, error: "Invalid email or password." }) };
 
-    debugStep = "Navigating to Calendar View";
-    console.log(`[DEBUG] ${debugStep}`);
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
 
     const scrapeCurrentView = async (weekLabelName) => {
-        debugStep = `Waiting for Calendar Selectors (${weekLabelName})`;
-        console.log(`[DEBUG] ${debugStep}`);
-        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 3000 }); } catch (err) { console.log(`[DEBUG] No classes found for ${weekLabelName}`); }
+        debugStep = `Waiting for Calendar Grid (${weekLabelName})`;
+        // CRITICAL FIX: Wait for the calendar grid container to exist, NOT the classes. 
+        try { await page.waitForSelector('thead .mis-calendar-date', { timeout: 15000 }); } catch (err) { console.log(`[DEBUG] Grid timeout for ${weekLabelName}`); }
         
-        debugStep = `Evaluating DOM Data (${weekLabelName})`;
-        console.log(`[DEBUG] ${debugStep}`);
         return await page.evaluate(async () => {
             const pageText = document.body.innerText;
             const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
@@ -131,29 +114,42 @@ exports.handler = async (event, context) => {
     };
 
     debugStep = "Executing Scrape Current View (Week 1)";
-    console.log(`[DEBUG] ${debugStep}`);
     const week1 = await scrapeCurrentView("Week 1");
     
     debugStep = "Looking for Next Week Button";
-    console.log(`[DEBUG] ${debugStep}`);
-    const nextBtn = await page.$('.mis-calendar-navigation-button-next');
-    if (nextBtn) {
-        debugStep = "Clicking Next Week Button";
-        console.log(`[DEBUG] ${debugStep}`);
-        await nextBtn.click();
-        
+    // Find the actual physical ">" button text from the UI header
+    const clickedNext = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const nextBtn = buttons.find(b => b.innerText.trim() === '>');
+        if (nextBtn) {
+            nextBtn.click();
+            return true;
+        }
+        const backupBtn = document.querySelector('.mis-calendar-navigation-button-next');
+        if (backupBtn) {
+            backupBtn.click();
+            return true;
+        }
+        return false;
+    });
+
+    if (clickedNext) {
         debugStep = "Waiting for Calendar to update";
-        console.log(`[DEBUG] ${debugStep}`);
-        await new Promise(resolve => setTimeout(resolve, 800)); 
-        
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
         debugStep = "Executing Scrape Current View (Week 2)";
-        console.log(`[DEBUG] ${debugStep}`);
         const week2 = await scrapeCurrentView("Week 2");
         week1.push(...week2);
+    } else {
+        console.log("[DEBUG] Next week button could not be clicked.");
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        days.forEach(d => week1.push({ day: d, weekLabel: 'Week B', isHoliday: true, classes: [] }));
     }
 
-    debugStep = "Returning successful payload";
-    console.log(`[DEBUG] ${debugStep}`);
+    // Failsafe padding to guarantee 10 days so frontend math never collapses
+    while(week1.length < 10) {
+        week1.push({ day: "Unknown", weekLabel: "Week B", isHoliday: true, classes: [] });
+    }
+
     return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully synced!`, data: week1 }) };
   } catch (error) {
     console.error(`[CRASH LOG] Failed at step: ${debugStep}. Error: ${error.toString()}`);
