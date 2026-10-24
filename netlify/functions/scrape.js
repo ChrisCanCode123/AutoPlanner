@@ -19,12 +19,10 @@ exports.handler = async (event, context) => {
     const page = await browser.newPage();
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-        // Block heavy resources so the script finishes well before Netlify's 10-second timeout limit
-        if (['image', 'stylesheet', 'font', 'media', 'script'].includes(req.resourceType())) req.abort();
+        if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) req.abort();
         else req.continue();
     });
 
-    // Use fast domcontentloaded instead of slow networkidle2
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
     await page.type('input[type="text"], input[type="email"], input[name="username"]', email);
     await page.type('input[type="password"]', password);
@@ -39,9 +37,7 @@ exports.handler = async (event, context) => {
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
 
     const scrapeCurrentView = async () => {
-        // Wait up to 3 seconds for calendar dates to appear, silently continue if empty (Holiday)
-        await page.waitForSelector('.mis-calendar-date', { timeout: 3000 }).catch(() => {});
-        
+        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 3000 }); } catch (err) { /* Holiday week failsafe */ }
         return await page.evaluate(async () => {
             const pageText = document.body.innerText;
             const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
@@ -50,8 +46,9 @@ exports.handler = async (event, context) => {
             const headers = Array.from(document.querySelectorAll('thead .mis-calendar-date'));
             const dayNames = headers.map(th => th.innerText.replace(/\n/g, ' ').trim());
             const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1);
+            
             const schedule = [];
-            const fetchPromises = [];
+            const uniqueFetches = {}; // The new cache engine
 
             dayColumns.forEach((col, index) => {
                 const dayName = dayNames[index] || `Day ${index + 1}`;
@@ -73,46 +70,56 @@ exports.handler = async (event, context) => {
                         const uniqueId = timeString + rawText;
                         if (!seen.has(uniqueId)) {
                             seen.add(uniqueId);
-                            const classData = { time: timeString, rawText: rawText, teacher: null, room: null };
-                            classes.push(classData);
-
-                            if (ajaxLink) {
-                                fetchPromises.push(fetch(ajaxLink).then(res => res.text()).then(html => {
+                            classes.push({ time: timeString, rawText: rawText, teacher: null, room: null, ajaxLink: ajaxLink });
+                            
+                            // Only trigger a fetch if we haven't looked up this subject yet
+                            if (ajaxLink && !uniqueFetches[rawText]) {
+                                uniqueFetches[rawText] = fetch(ajaxLink).then(res => res.text()).then(html => {
                                     const doc = new DOMParser().parseFromString(html, 'text/html');
                                     const listItems = Array.from(doc.querySelectorAll('li'));
                                     const staffLi = listItems.find(li => li.querySelector('b') && li.querySelector('b').innerText.includes('Staff'));
-                                    if (staffLi && staffLi.querySelector('span')) classData.teacher = staffLi.querySelector('span').innerText.trim();
+                                    const teacher = staffLi && staffLi.querySelector('span') ? staffLi.querySelector('span').innerText.trim() : null;
                                     const roomLi = listItems.find(li => li.querySelector('b') && (li.querySelector('b').innerText.includes('Room') || li.querySelector('b').innerText.includes('Location')));
-                                    if (roomLi && roomLi.querySelector('span')) classData.room = roomLi.querySelector('span').innerText.trim();
-                                }).catch(e => console.error(e)));
+                                    const room = roomLi && roomLi.querySelector('span') ? roomLi.querySelector('span').innerText.trim() : null;
+                                    return { teacher, room };
+                                }).catch(() => ({ teacher: null, room: null }));
                             }
                         }
                     }
                 });
                 
                 if (classes.length > 0) classes.sort((a, b) => a.time.localeCompare(b.time));
-                
-                schedule.push({ 
-                    day: dayName, 
-                    weekLabel: weekLabel, 
-                    isHoliday: classes.length === 0,
-                    classes: classes 
+                schedule.push({ day: dayName, weekLabel: weekLabel, isHoliday: classes.length === 0, classes: classes });
+            });
+
+            // Await all unique network requests concurrently
+            const fetchKeys = Object.keys(uniqueFetches);
+            const fetchResults = await Promise.all(Object.values(uniqueFetches));
+            
+            const cache = {};
+            fetchKeys.forEach((key, i) => cache[key] = fetchResults[i]);
+
+            // Paste the cached Teacher/Room data back into the schedule
+            schedule.forEach(day => {
+                day.classes.forEach(cls => {
+                    if (cache[cls.rawText]) {
+                        cls.teacher = cache[cls.rawText].teacher;
+                        cls.room = cache[cls.rawText].room;
+                    }
+                    delete cls.ajaxLink; 
                 });
             });
-            await Promise.all(fetchPromises);
+
             return schedule;
         });
     };
 
-    // Scrape Week 1
     const week1 = await scrapeCurrentView();
     
-    // Click Next Week and Scrape Week 2
     const nextBtn = await page.$('.mis-calendar-navigation-button-next');
     if (nextBtn) {
         await nextBtn.click();
-        // Safe, native JS timeout replacement for deprecated puppeteer functions
-        await new Promise(resolve => setTimeout(resolve, 1500)); 
+        await new Promise(resolve => setTimeout(resolve, 600)); // Reduced buffer time
         const week2 = await scrapeCurrentView();
         week1.push(...week2);
     }
