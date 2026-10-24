@@ -34,8 +34,12 @@ exports.handler = async (event, context) => {
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'networkidle2' });
 
     const scrapeCurrentView = async () => {
-        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 5000 }); } catch (err) { return []; }
+        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 5000 }); } catch (err) { /* Ignore timeout for empty holiday weeks */ }
         return await page.evaluate(async () => {
+            const pageText = document.body.innerText;
+            const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
+            const weekLabel = weekMatch ? `Week ${weekMatch[1].toUpperCase()}` : "Week A";
+
             const headers = Array.from(document.querySelectorAll('thead .mis-calendar-date'));
             const dayNames = headers.map(th => th.innerText.replace(/\n/g, ' ').trim());
             const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1);
@@ -78,20 +82,24 @@ exports.handler = async (event, context) => {
                         }
                     }
                 });
-                if (classes.length > 0) {
-                    classes.sort((a, b) => a.time.localeCompare(b.time));
-                    schedule.push({ day: dayName, classes: classes });
-                }
+                
+                if (classes.length > 0) classes.sort((a, b) => a.time.localeCompare(b.time));
+                
+                // CRITICAL FIX: Push the day to the array even if there are zero classes (Holiday)
+                schedule.push({ 
+                    day: dayName, 
+                    weekLabel: weekLabel, 
+                    isHoliday: classes.length === 0,
+                    classes: classes 
+                });
             });
             await Promise.all(fetchPromises);
             return schedule;
         });
     };
 
-    // Scrape Week 1
     const week1 = await scrapeCurrentView();
     
-    // Click Next Week and Scrape Week 2
     const nextBtn = await page.$('.mis-calendar-navigation-button-next');
     if (nextBtn) {
         await nextBtn.click();

@@ -75,7 +75,8 @@
         .day-header { margin-top: 10px; margin-bottom: 14px; font-size: 16px; color: var(--text-main); font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         .timetable { position: relative; padding-left: 16px; margin-bottom: 30px; }
         .timetable::before { content: ''; position: absolute; top: 0; bottom: 0; left: 20px; width: 2px; background-color: var(--line-color); }
-        .class-slot { display: flex; align-items: flex-start; margin-bottom: 18px; position: relative; }
+        .class-slot { display: flex; align-items: flex-start; margin-bottom: 18px; position: relative; cursor: pointer; transition: opacity 0.2s; }
+        .class-slot:active { opacity: 0.7; }
         .class-slot::before { content: ''; position: absolute; left: 0; top: 6px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--line-color); z-index: 1; border: 2px solid var(--bg); }
         .class-slot:not(.free-period)::before { background-color: var(--primary); }
         
@@ -83,11 +84,13 @@
         .time-start { font-weight: 700; font-size: 14px; color: var(--text-main); }
         .time-end { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
         
-        .info-col { flex-grow: 1; background: var(--card-bg); padding: 14px 18px; border-radius: var(--radius-md); border: 1px solid var(--line-color); margin-left: 8px; }
+        .info-col { flex-grow: 1; background: var(--card-bg); padding: 14px 18px; border-radius: var(--radius-md); border: 1px solid var(--line-color); margin-left: 8px; position: relative; }
         .class-slot.free-period .info-col { background: transparent; border: 2px dashed var(--line-color); padding: 12px 18px; }
         .class-slot.free-period .subject { color: var(--text-muted); font-weight: 600; font-size: 15px; }
         .subject { font-size: 17px; font-weight: 700; color: var(--text-main); }
         .class-meta { font-size: 13px; color: var(--text-muted); margin-top: 6px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+
+        .holiday-banner { background: rgba(16, 185, 129, 0.1); border: 1px dashed var(--success); color: var(--success); padding: 16px; border-radius: var(--radius-md); text-align: center; font-weight: 700; font-size: 15px; margin-bottom: 30px; }
 
         .hw-card { display: flex; flex-direction: column; gap: 12px; position: relative; }
         .hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
@@ -97,9 +100,15 @@
         .hw-due { font-size: 12px; font-weight: 700; color: var(--danger); background: rgba(239, 68, 68, 0.1); padding: 6px 10px; border-radius: var(--radius-sm); white-space: nowrap; }
         .hw-desc { font-size: 16px; color: var(--text-main); white-space: pre-wrap; line-height: 1.5; font-weight: 500; }
         
-        .hw-img { width: 80px; height: 80px; border-radius: var(--radius-sm); object-fit: cover; cursor: pointer; border: 1px solid var(--line-color); }
-        .hw-img.expanded { width: 100%; height: auto; max-height: 400px; object-fit: contain; border: none; background: #000; }
+        /* Multi-Image Swipe Carousel */
+        .hw-image-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 8px; scrollbar-width: none; padding-bottom: 4px; }
+        .hw-image-carousel::-webkit-scrollbar { display: none; }
+        .hw-image-carousel .hw-img { flex: 0 0 92%; height: 200px; object-fit: cover; border-radius: var(--radius-sm); scroll-snap-align: center; border: 1px solid var(--line-color); cursor: pointer; }
         
+        #lightbox-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+        #lightbox-img { max-width: 95%; max-height: 85vh; object-fit: contain; border-radius: 8px; }
+        .lightbox-close { position: absolute; top: 40px; right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
         .hw-actions { display: flex; gap: 10px; margin-top: 8px; justify-content: flex-end; }
         .action-icon-btn { width: 44px; height: 44px; border-radius: var(--radius-sm); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; }
         .btn-complete { background: rgba(16, 185, 129, 0.15); color: var(--success); }
@@ -115,35 +124,24 @@
         .compact-mode .hw-teacher { font-size: 16px; }
         .compact-mode .hw-subject-badge { display: none; }
         .compact-mode .hw-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; margin: 4px 0; }
-        .compact-mode .hw-img { display: none; }
+        .compact-mode .hw-image-carousel { display: none; }
         .compact-mode .hw-actions { margin-top: 4px; }
         .compact-mode .action-icon-btn { width: 36px; height: 36px; }
         .compact-mode .action-icon-btn svg { width: 16px; height: 16px; }
 
-        /* Tiny Countdown Pill */
         #countdown-pill {
-            display: none;
-            position: fixed;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--danger);
-            color: white;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            z-index: 99;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-            white-space: nowrap;
-            letter-spacing: 0.5px;
-            align-items: center;
+            display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--danger); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; z-index: 99; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4); white-space: nowrap; letter-spacing: 0.5px; align-items: center;
         }
 
         .input-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        #edit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card-bg); padding: 24px; border-radius: var(--radius-md); width: 100%; max-width: 400px; border: 1px solid var(--line-color); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        
+        .img-upload-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--bg); border: 2px dashed var(--line-color); padding: 16px; border-radius: var(--radius-md); font-weight: 600; color: var(--text-muted); cursor: pointer; text-align: center; margin-bottom: 16px; }
+        .img-preview-container { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+        .img-preview-container img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line-color); }
     </style>
 </head>
 <body>
@@ -159,13 +157,17 @@
         </div>
     </div>
 
-    <!-- Tiny Countdown Pill -->
     <div id="countdown-pill">
         <span id="cd-subject" style="opacity: 0.9; margin-right: 4px;"></span>
         <span id="cd-time" style="font-variant-numeric: tabular-nums;"></span>
     </div>
 
-    <div id="edit-modal">
+    <div id="lightbox-overlay">
+        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <img id="lightbox-img" src="">
+    </div>
+
+    <div id="edit-modal" class="modal-overlay">
         <div class="modal-content">
             <h2 style="margin-bottom: 20px; font-size: 20px;">Edit Task</h2>
             <input type="hidden" id="edit-id">
@@ -176,6 +178,24 @@
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button class="btn" style="background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color);" onclick="closeEditModal()">Cancel</button>
                 <button class="btn" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-lesson-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 20px; font-size: 20px;">Edit Lesson Details</h2>
+            <input type="hidden" id="edit-lesson-day-index">
+            <input type="hidden" id="edit-lesson-class-index">
+            <label class="input-label">Subject</label>
+            <input type="text" id="edit-lesson-subject" placeholder="e.g. 12A/Ph1a">
+            <label class="input-label">Teacher</label>
+            <input type="text" id="edit-lesson-teacher" placeholder="e.g. Mr Burn">
+            <label class="input-label">Room</label>
+            <input type="text" id="edit-lesson-room" placeholder="e.g. SC3JH">
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn" style="background: var(--bg); color: var(--text-main); border: 1px solid var(--line-color);" onclick="closeLessonModal()">Cancel</button>
+                <button class="btn" onclick="saveLessonEdit()">Update Schedule</button>
             </div>
         </div>
     </div>
@@ -197,7 +217,6 @@
         </header>
 
         <main>
-            <!-- DASHBOARD TAB -->
             <div id="tab-dashboard" class="tab-content active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -219,7 +238,6 @@
                 </div>
             </div>
 
-            <!-- ADD HOMEWORK TAB -->
             <div id="tab-add" class="tab-content">
                 <div class="box" style="border: none; background: transparent; padding: 0; margin-bottom: 24px;">
                     <div id="add-context-box" style="margin-bottom: 24px; text-align: center;">
@@ -245,17 +263,19 @@
                         <label class="input-label">Details</label>
                         <textarea id="hw-desc" placeholder="What's the homework?" rows="3"></textarea>
                         
-                        <label class="input-label">Attach Photo</label>
-                        <input type="file" id="hw-image" accept="image/*" style="padding: 12px; background: var(--bg); border: 2px dashed var(--line-color);">
+                        <label class="input-label">Attach Photos</label>
+                        <label class="img-upload-btn" for="hw-images">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            <span id="img-upload-btn-text">Select Photos</span>
+                        </label>
+                        <input type="file" id="hw-images" accept="image/*" multiple style="display: none;">
+                        <div id="image-preview-container" class="img-preview-container"></div>
                         
-                        <button type="submit" class="btn" style="margin-top: 12px; font-size: 18px;">
-                            Save Task
-                        </button>
+                        <button type="submit" class="btn" style="margin-top: 12px; font-size: 18px;">Save Task</button>
                     </form>
                 </div>
             </div>
 
-            <!-- TIMETABLE TAB -->
             <div id="tab-timetable" class="tab-content">
                 <div id="form-section" class="box">
                     <h2 style="margin-bottom: 20px; font-size: 18px; font-weight: 800;">Sync Schedule</h2>
@@ -265,7 +285,8 @@
                         <button type="submit" class="btn">Connect & Download</button>
                     </form>
                 </div>
-                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 600; font-size: 14px;">Syncing 14 Days...</div></div>
+                <div id="loading"><div class="spinner"></div><div id="status-text" style="color: var(--text-muted); font-weight: 600; font-size: 14px;">Syncing Schedule...</div></div>
+                
                 <div id="timetable-controls" class="view-toggles" style="display: none;">
                     <button id="btn-view-today" class="toggle-btn active-toggle" onclick="renderTimetable('today')">Today</button>
                     <button id="btn-view-week" class="toggle-btn" onclick="renderTimetable('week')">Week</button>
@@ -274,6 +295,7 @@
                         Sync
                     </button>
                 </div>
+                <div id="timetable-hint" style="display:none; text-align:center; font-size:12px; color:var(--text-muted); margin-bottom:15px; font-weight:600;">Tap any lesson to manually edit it.</div>
                 <div id="timetable-list"></div>
             </div>
         </main>
@@ -295,24 +317,18 @@
     </div>
 
     <script>
-        // --- GLOBAL VARIABLES (MOVED TO TOP TO PREVENT HOISTING ERRORS) ---
         let db;
         let countdownInterval = null;
         const themes = ['', 'theme-emerald', 'theme-rose', 'theme-amber', 'theme-amethyst'];
         let currentThemeIdx = parseInt(localStorage.getItem('colorThemeIdx') || '0');
+        let currentAttachments = []; 
 
         const moonIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
         const sunIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
 
-        // --- CORE FUNCTIONS DEFINED FIRST ---
         const parseTime = (timeStr) => { 
-            try {
-                const [h, m] = (timeStr || "0:0").split(':').map(Number); return (h * 60) + m; 
-            } catch(e) {
-                return 0;
-            }
+            try { const [h, m] = (timeStr || "0:0").split(':').map(Number); return (h * 60) + m; } catch(e) { return 0; }
         };
-        
         const formatTime = (mins) => { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; };
 
         function getMonday(date) {
@@ -333,17 +349,22 @@
             return diffWeeks % 2; 
         }
 
-        function getDaySchedule(targetDate, scheduleArray) {
+        function getDayScheduleAndIndex(targetDate, scheduleArray) {
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayName = days[targetDate.getDay()];
-            const weekIndex = getWeekTypeIndex(targetDate);
-            const occurrences = scheduleArray.filter(d => d.day && d.day.includes(dayName));
-            return occurrences[weekIndex] || occurrences[0];
+            const weekIndex = getWeekTypeIndex(targetDate); 
+            
+            let matchedDays = [];
+            scheduleArray.forEach((d, idx) => {
+                if (d.day && d.day.includes(dayName)) matchedDays.push({ obj: d, origIndex: idx });
+            });
+            
+            if(matchedDays.length === 0) return null;
+            return matchedDays[weekIndex] || matchedDays[0];
         }
 
         function startCountdown() {
             if (countdownInterval) clearInterval(countdownInterval);
-            
             function update() {
                 try {
                     const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
@@ -354,14 +375,14 @@
 
                     const now = new Date();
                     const currentMins = now.getHours() * 60 + now.getMinutes();
-                    let todaySchedule = getDaySchedule(now, schedule);
+                    const dayData = getDayScheduleAndIndex(now, schedule);
+                    const todaySchedule = dayData ? dayData.obj : null;
                     
-                    if (!todaySchedule || !Array.isArray(todaySchedule.classes)) { 
+                    if (!todaySchedule || todaySchedule.isHoliday || !Array.isArray(todaySchedule.classes) || todaySchedule.classes.length === 0) { 
                         pill.style.display = 'none'; return; 
                     }
 
                     let nextLesson = null;
-
                     for (let cls of todaySchedule.classes) {
                         if (!cls.time || cls.rawText === "Free Period") continue;
                         const times = cls.time.split('-');
@@ -396,15 +417,13 @@
                     } else {
                         pill.style.display = 'none';
                     }
-                } catch(err) {
-                    console.error("Countdown Error:", err);
-                }
+                } catch(err) { console.error(err); }
             }
             update();
             countdownInterval = setInterval(update, 1000);
         }
 
-        // --- AUTH & INITIALIZATION ---
+        // --- AUTH & THEME ---
         function applyColorTheme() {
             themes.forEach(t => t && document.body.classList.remove(t));
             if (themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
@@ -456,11 +475,8 @@
             if (document.getElementById('app-pin-input').value === '7788') { localStorage.setItem('appUnlocked', 'true'); unlockApp(); }
             else document.getElementById('auth-error').style.display = 'block';
         }
-        
-        // Start Auth Check
         checkAccess();
 
-        // --- DATABASE & APP LOGIC ---
         function clearAllData() {
             if (confirm("Are you sure you want to delete all saved tasks and schedule data?")) {
                 localStorage.clear();
@@ -475,117 +491,164 @@
                 db = e.target.result; 
                 if (!db.objectStoreNames.contains("homework")) db.createObjectStore("homework", { keyPath: "id" }); 
             };
-            request.onsuccess = (e) => { 
-                db = e.target.result; 
-                renderHomework(); 
-            };
-        } catch(err) {
-            console.error("DB Initialization Error:", err);
-        }
+            request.onsuccess = (e) => { db = e.target.result; renderHomework(); };
+        } catch(err) { console.error(err); }
 
         function switchTab(tabId, headerTitle) {
-            try {
-                document.getElementById('app-header-title').innerText = headerTitle;
-                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-                document.getElementById('tab-' + tabId).classList.add('active');
-                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-                if(event && event.currentTarget) event.currentTarget.classList.add('active');
-                
-                if(tabId === 'add') populateAddForm();
-                if(tabId === 'dashboard') renderHomework();
-                if(tabId === 'timetable') renderTimetable('today');
-            } catch(err) {
-                console.error("Tab Switch Error:", err);
-            }
+            document.getElementById('app-header-title').innerText = headerTitle;
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            if(event && event.currentTarget) event.currentTarget.classList.add('active');
+            
+            if(tabId === 'add') populateAddForm();
+            if(tabId === 'dashboard') renderHomework();
+            if(tabId === 'timetable') renderTimetable('today');
+        }
+
+        // --- TIMETABLE EDITOR LOGIC ---
+        function openLessonEditor(dayIndex, classIndex) {
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            const lesson = schedule[dayIndex].classes[classIndex];
+            
+            document.getElementById('edit-lesson-day-index').value = dayIndex;
+            document.getElementById('edit-lesson-class-index').value = classIndex;
+            document.getElementById('edit-lesson-subject').value = lesson.rawText || '';
+            document.getElementById('edit-lesson-teacher').value = lesson.teacher || '';
+            document.getElementById('edit-lesson-room').value = lesson.room || '';
+            
+            document.getElementById('edit-lesson-modal').style.display = 'flex';
+        }
+
+        function closeLessonModal() { document.getElementById('edit-lesson-modal').style.display = 'none'; }
+
+        function saveLessonEdit() {
+            const dayIndex = document.getElementById('edit-lesson-day-index').value;
+            const classIndex = document.getElementById('edit-lesson-class-index').value;
+            const newSubject = document.getElementById('edit-lesson-subject').value;
+            const newTeacher = document.getElementById('edit-lesson-teacher').value;
+            const newRoom = document.getElementById('edit-lesson-room').value;
+
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            schedule[dayIndex].classes[classIndex].rawText = newSubject;
+            schedule[dayIndex].classes[classIndex].teacher = newTeacher;
+            schedule[dayIndex].classes[classIndex].room = newRoom;
+            
+            localStorage.setItem('schedule', JSON.stringify(schedule));
+            closeLessonModal();
+            renderTimetable(document.getElementById('btn-view-week').classList.contains('active-toggle') ? 'week' : 'today');
+            startCountdown();
         }
 
         function renderTimetable(viewType = 'today') {
-            try {
-                const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
-                const list = document.getElementById('timetable-list');
-                list.innerHTML = '';
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]');
+            const list = document.getElementById('timetable-list');
+            list.innerHTML = '';
+            
+            if (schedule.length === 0) { 
+                document.getElementById('form-section').style.display = 'block'; 
+                document.getElementById('timetable-controls').style.display = 'none'; 
+                document.getElementById('timetable-hint').style.display = 'none';
+                return; 
+            }
+            
+            document.getElementById('form-section').style.display = 'none'; 
+            document.getElementById('timetable-controls').style.display = 'flex';
+            document.getElementById('timetable-hint').style.display = 'block';
 
-                document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
-                document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
+            document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today');
+            document.getElementById('btn-view-week')?.classList.toggle('active-toggle', viewType === 'week');
 
-                if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; return; }
-                document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex';
-
-                let daysToRender = [];
-                
-                if (viewType === 'today') {
-                    let targetDate = new Date();
-                    let dayNum = targetDate.getDay();
-                    if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
-                    const sched = getDaySchedule(targetDate, schedule);
-                    const weekType = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
-                    if (sched) daysToRender.push({ ...sched, weekLabel: weekType });
-                } else {
-                    let targetDate = getMonday(new Date());
-                    for(let i=0; i<5; i++) {
-                        const sched = getDaySchedule(targetDate, schedule);
-                        const weekType = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
-                        if (sched) daysToRender.push({ ...sched, weekLabel: weekType });
-                        targetDate.setDate(targetDate.getDate() + 1);
+            let daysToRender = [];
+            
+            if (viewType === 'today') {
+                let targetDate = new Date();
+                let dayNum = targetDate.getDay();
+                if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
+                const dayData = getDayScheduleAndIndex(targetDate, schedule);
+                if (dayData) {
+                    const fallbackWeek = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
+                    daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: dayData.obj.weekLabel || fallbackWeek });
+                }
+            } else {
+                let targetDate = getMonday(new Date());
+                for(let i=0; i<5; i++) {
+                    const dayData = getDayScheduleAndIndex(targetDate, schedule);
+                    if (dayData) {
+                        const fallbackWeek = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B';
+                        daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: dayData.obj.weekLabel || fallbackWeek });
                     }
+                    targetDate.setDate(targetDate.getDate() + 1);
+                }
+            }
+
+            if (daysToRender.length === 0) {
+                list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); font-size: 15px;">No classes found.</div>';
+                return;
+            }
+
+            daysToRender.forEach(daySchedule => {
+                const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, '');
+                const dayHeader = document.createElement('div'); 
+                dayHeader.className = 'day-header'; 
+                dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--primary); font-size: 13px; font-weight: 800; background: rgba(79, 70, 229, 0.1); padding: 2px 8px; border-radius: 12px; margin-left: 6px;">${daySchedule.weekLabel}</span>`;
+                list.appendChild(dayHeader);
+                
+                // NEW: Render Holiday Banner if tagged
+                if (daySchedule.isHoliday || !daySchedule.classes || daySchedule.classes.length === 0) {
+                    const banner = document.createElement('div');
+                    banner.className = 'holiday-banner';
+                    banner.innerText = '🌴 Holiday / No Classes Scheduled';
+                    list.appendChild(banner);
+                    return; // Skip rendering slots for this day
                 }
 
-                if (daysToRender.length === 0) return; 
-
-                daysToRender.forEach(daySchedule => {
-                    const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, '');
-                    const dayHeader = document.createElement('div'); 
-                    dayHeader.className = 'day-header'; 
-                    dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--text-muted); font-size: 13px; font-weight: 600; text-transform: none;">(${daySchedule.weekLabel})</span>`;
-                    list.appendChild(dayHeader);
+                const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
+                let currentMins = 550; // 09:10
+                
+                daySchedule.classes.forEach((cls, classIdx) => {
+                    const times = (cls.time || "").split('-');
+                    if(times.length !== 2) return;
+                    const startMins = parseTime(times[0]); const endMins = parseTime(times[1]);
                     
-                    const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable';
-
-                    let realClasses = (daySchedule.classes || []).filter(c => { 
-                        if (!c.time) return false;
-                        const end = parseTime(c.time.split('-')[1] || "23:59"); 
-                        return end > 550; 
-                    });
+                    if (startMins - currentMins >= 45) {
+                        const isLunch = (currentMins >= 740 && startMins <= 815); 
+                        if (!isLunch) {
+                            const freeSlot = document.createElement('div');
+                            freeSlot.className = 'class-slot free-period';
+                            freeSlot.innerHTML = `<div class="time-col"><div class="time-start">${formatTime(currentMins)}</div><div class="time-end">${times[0]}</div></div><div class="info-col"><div class="subject">Free Period</div></div>`;
+                            dayTimeline.appendChild(freeSlot);
+                        }
+                    }
                     
-                    const dayStartMins = 550; const dayEndMins = 924; let currentMins = dayStartMins;
-                    const slotsToRender = [];
-
-                    realClasses.forEach(cls => {
-                        const times = (cls.time || "").split('-');
-                        if(times.length !== 2) return;
-                        const startMins = parseTime(times[0]); const endMins = parseTime(times[1]);
-                        if (startMins - currentMins >= 45) {
-                            const isLunch = (currentMins >= 740 && startMins <= 815); 
-                            if (!isLunch) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - ${times[0]}`, rawText: "Free Period" });
-                        }
-                        slotsToRender.push({ isFree: false, time: cls.time, rawText: cls.rawText, teacher: cls.teacher, room: cls.room });
-                        currentMins = endMins;
-                    });
-                    if (dayEndMins - currentMins >= 45) slotsToRender.push({ isFree: true, time: `${formatTime(currentMins)} - 15:24`, rawText: "Free Period" });
-
-                    slotsToRender.forEach(slotData => {
-                        const times = (slotData.time || "").split('-');
-                        const slot = document.createElement('div');
-                        slot.className = `class-slot ${slotData.isFree ? 'free-period' : ''}`;
-                        let metaHTML = '';
-                        if (!slotData.isFree && (slotData.teacher || slotData.room)) {
-                            let metaParts = []; if (slotData.teacher) metaParts.push(slotData.teacher); if (slotData.room) metaParts.push(slotData.room);
-                            metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`;
-                        }
-                        slot.innerHTML = `<div class="time-col"><div class="time-start">${(times[0] || "").trim()}</div><div class="time-end">${(times[1] || "").trim()}</div></div><div class="info-col"><div class="subject">${slotData.rawText}</div>${metaHTML}</div>`;
-                        dayTimeline.appendChild(slot);
-                    });
-                    list.appendChild(dayTimeline);
+                    const slot = document.createElement('div');
+                    slot.className = `class-slot`;
+                    slot.setAttribute('onclick', `openLessonEditor(${daySchedule.globalIndex}, ${classIdx})`);
+                    let metaHTML = '';
+                    let metaParts = []; if (cls.teacher) metaParts.push(cls.teacher); if (cls.room) metaParts.push(cls.room);
+                    if(metaParts.length > 0) metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`;
+                    slot.innerHTML = `<div class="time-col"><div class="time-start">${(times[0] || "").trim()}</div><div class="time-end">${(times[1] || "").trim()}</div></div><div class="info-col"><div class="subject">${cls.rawText}</div>${metaHTML}</div>`;
+                    dayTimeline.appendChild(slot);
+                    
+                    currentMins = endMins;
                 });
-            } catch(err) {
-                console.error("Timetable Render Error:", err);
-            }
+                
+                if (924 - currentMins >= 45) {
+                    const freeSlot = document.createElement('div');
+                    freeSlot.className = 'class-slot free-period';
+                    freeSlot.innerHTML = `<div class="time-col"><div class="time-start">${formatTime(currentMins)}</div><div class="time-end">15:24</div></div><div class="info-col"><div class="subject">Free Period</div></div>`;
+                    dayTimeline.appendChild(freeSlot);
+                }
+                
+                list.appendChild(dayTimeline);
+            });
         }
 
         function showSyncForm() {
-            if(confirm("Download the latest timetable from Arbor? Your saved tasks will NOT be deleted.")) {
+            if(confirm("Download latest timetable? Manual edits will be lost.")) {
                 document.getElementById('form-section').style.display = 'block';
                 document.getElementById('timetable-controls').style.display = 'none';
+                document.getElementById('timetable-hint').style.display = 'none';
                 document.getElementById('timetable-list').innerHTML = '';
             }
         }
@@ -595,7 +658,8 @@
             try {
                 const response = await fetch('/.netlify/functions/scrape', { method: 'POST', body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }) });
                 const data = await response.json(); document.getElementById('loading').style.display = 'none';
-                if (data.success) { 
+                
+                if (data.success) {
                     localStorage.setItem('schedule', JSON.stringify(data.data)); 
                     localStorage.setItem('syncAnchor', new Date().toISOString()); 
                     renderTimetable('today'); 
@@ -614,6 +678,11 @@
                 select.innerHTML = '<option value="">Select...</option>';
                 document.getElementById('custom-due-date').value = '';
                 
+                // Clear old attachments when opening form
+                currentAttachments = [];
+                document.getElementById('image-preview-container').innerHTML = '';
+                document.getElementById('img-upload-btn-text').innerText = "Select Photos";
+                
                 const uniqueOptions = [];
                 schedule.forEach(d => {
                     if (!d.classes) return;
@@ -621,19 +690,16 @@
                         if (c.isFree) return;
                         let label = c.teacher ? c.teacher : c.rawText;
                         let key = c.rawText + '|' + (c.teacher || '') + '|' + (c.room || '');
-                        if (!uniqueOptions.find(o => o.label === label)) {
-                            uniqueOptions.push({ label, key });
-                        }
+                        if (!uniqueOptions.find(o => o.label === label)) uniqueOptions.push({ label, key });
                     });
                 });
 
-                uniqueOptions.forEach(opt => {
-                    select.innerHTML += `<option value="${opt.key}">${opt.label}</option>`;
-                });
+                uniqueOptions.forEach(opt => select.innerHTML += `<option value="${opt.key}">${opt.label}</option>`);
 
                 const now = new Date();
                 const currentMins = now.getHours() * 60 + now.getMinutes();
-                let todaySchedule = getDaySchedule(now, schedule);
+                const dayData = getDayScheduleAndIndex(now, schedule);
+                const todaySchedule = dayData ? dayData.obj : null;
 
                 let currentClassKey = null;
                 let currentTeacher = null;
@@ -663,9 +729,7 @@
                     document.getElementById('due-date-preview').innerText = "Due: Select a subject first";
                     document.getElementById('due-date-preview').dataset.due = "";
                 }
-            } catch(err) {
-                console.error("Add Form Error:", err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         document.getElementById('hw-subject').addEventListener('change', (e) => calculateNextLesson(e.target.value, JSON.parse(localStorage.getItem('schedule') || '[]')));
@@ -687,7 +751,9 @@
                     checkDate.setDate(now.getDate() + i);
                     const checkDayName = days[checkDate.getDay()];
                     
-                    const daySchedule = getDaySchedule(checkDate, schedule);
+                    const dayData = getDayScheduleAndIndex(checkDate, schedule);
+                    const daySchedule = dayData ? dayData.obj : null;
+                    
                     if(daySchedule && daySchedule.classes) {
                         const match = daySchedule.classes.find(c => {
                             if (teacher && c.teacher) return c.teacher === teacher; 
@@ -703,17 +769,56 @@
                 if(!found) nextDate = "No lesson found in schedule";
                 document.getElementById('due-date-preview').innerText = nextDate;
                 document.getElementById('due-date-preview').dataset.due = nextDate;
-            } catch(err) {
-                console.error("Next Lesson Calc Error:", err);
-            }
+            } catch(err) { console.error(err); }
         }
+
+        // --- IMAGE COMPRESSION LOGIC ---
+        function resizeImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 1200;
+                        const MAX_HEIGHT = 1200;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+                        else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8)); // compress to 80% jpeg
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('hw-images').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            const previewContainer = document.getElementById('image-preview-container');
+            const btnText = document.getElementById('img-upload-btn-text');
+            btnText.innerText = "Compressing...";
+            
+            for (let file of files) {
+                const base64 = await resizeImage(file);
+                currentAttachments.push(base64);
+                const img = document.createElement('img');
+                img.src = base64;
+                previewContainer.appendChild(img);
+            }
+            btnText.innerText = `Attached ${currentAttachments.length} Photo(s)`;
+        });
 
         document.getElementById('addHwForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const file = document.getElementById('hw-image').files[0];
             const desc = document.getElementById('hw-desc').value;
             
-            if(!file && !desc.trim()) return alert("Please add details or attach a photo.");
+            if(currentAttachments.length === 0 && !desc.trim()) return alert("Please add details or attach a photo.");
             
             const customDateInput = document.getElementById('custom-due-date').value;
             let finalDueDate = document.getElementById('due-date-preview').dataset.due || 'Next Lesson';
@@ -729,13 +834,19 @@
             const displaySubject = parts[0]; 
             const teacherName = parts[1] || ''; 
 
-            const task = { id: Date.now().toString(), dateSet: Date.now(), subject: displaySubject, teacher: teacherName, desc: desc, due: finalDueDate, status: 'active', image: null };
+            const task = { 
+                id: Date.now().toString(), 
+                dateSet: Date.now(), 
+                subject: displaySubject, 
+                teacher: teacherName, 
+                desc: desc, 
+                due: finalDueDate, 
+                status: 'active', 
+                images: currentAttachments, // NEW multi-image array
+                image: null // legacy fallback
+            };
 
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) { task.image = evt.target.result; saveTaskToDB(task); };
-                reader.readAsDataURL(file);
-            } else saveTaskToDB(task);
+            saveTaskToDB(task);
         });
 
         function saveTaskToDB(task) {
@@ -743,10 +854,14 @@
             try {
                 const tx = db.transaction("homework", "readwrite");
                 tx.objectStore("homework").put(task); 
-                tx.oncomplete = () => { document.getElementById('addHwForm').reset(); switchTab('dashboard', 'Tasks'); };
-            } catch(err) {
-                console.error("Save Task Error:", err);
-            }
+                tx.oncomplete = () => { 
+                    document.getElementById('addHwForm').reset(); 
+                    currentAttachments = [];
+                    document.getElementById('image-preview-container').innerHTML = '';
+                    document.getElementById('img-upload-btn-text').innerText = "Select Photos";
+                    switchTab('dashboard', 'Tasks'); 
+                };
+            } catch(err) { console.error("Save Task Error:", err); }
         }
 
         function parseDueDate(dueStr) {
@@ -763,6 +878,15 @@
             return Number.MAX_SAFE_INTEGER;
         }
 
+        // --- FULL-SCREEN IMAGE LIGHTBOX ---
+        function openLightbox(src) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox-overlay').style.display = 'flex';
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox-overlay').style.display = 'none';
+        }
+
         function renderHomework() {
             if (!db) return;
             const list = document.getElementById('homework-list');
@@ -774,34 +898,27 @@
             
             try {
                 const tx = db.transaction("homework", "readonly");
-                const store = tx.objectStore("homework");
-                const req = store.getAll();
+                const req = tx.objectStore("homework").getAll();
                 
                 req.onsuccess = e => {
-                    try {
-                        let tasks = e.target.result || [];
-                        tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id) || Date.now(); });
+                    let tasks = e.target.result || [];
+                    tasks.forEach(t => { if(!t.dateSet) t.dateSet = parseInt(t.id) || Date.now(); });
 
-                        let activeTasks = tasks.filter(t => t.status !== 'completed');
-                        if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
-                        else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
+                    let activeTasks = tasks.filter(t => t.status !== 'completed');
+                    if (sortMethod === 'due') activeTasks.sort((a,b) => parseDueDate(a.due) - parseDueDate(b.due));
+                    else activeTasks.sort((a,b) => b.dateSet - a.dateSet);
 
-                        const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
+                    const completedTasks = tasks.filter(t => t.status === 'completed').sort((a,b) => b.id - a.id);
 
-                        if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
-                        else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
+                    if (activeTasks.length === 0) list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); border-style: dashed; padding: 40px 20px; font-size: 15px; font-weight: 600;">No pending tasks.<br>You are all caught up!</div>';
+                    else activeTasks.forEach(task => list.appendChild(createTaskCard(task, false)));
 
-                        if (completedTasks.length > 0) {
-                            historySection.style.display = 'block';
-                            completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
-                        }
-                    } catch(innerErr) {
-                        console.error("Render Tasks Process Error:", innerErr);
+                    if (completedTasks.length > 0) {
+                        historySection.style.display = 'block';
+                        completedTasks.forEach(task => historyList.appendChild(createTaskCard(task, true)));
                     }
                 };
-            } catch(err) {
-                console.error("Render Tasks DB Error:", err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         function createTaskCard(task, isHistory) {
@@ -814,9 +931,19 @@
                    <button class="action-icon-btn btn-edit" onclick="openEditModal('${task.id}')" title="Edit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>
                    <button class="action-icon-btn btn-hard-delete" onclick="hardDeleteTask('${task.id}')" title="Delete"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
             
-            const imageHTML = task.image ? `<img src="${task.image}" class="hw-img" onclick="this.classList.toggle('expanded')" title="Tap to expand">` : '';
-            const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
+            // Build the multi-image carousel
+            let imageHTML = '';
+            const imagesToRender = task.images && task.images.length > 0 ? task.images : (task.image ? [task.image] : []);
             
+            if (imagesToRender.length > 0) {
+                imageHTML = `<div class="hw-image-carousel">`;
+                imagesToRender.forEach(imgSrc => {
+                    imageHTML += `<img src="${imgSrc}" class="hw-img" onclick="openLightbox(this.src)">`;
+                });
+                imageHTML += `</div>`;
+            }
+            
+            const descHTML = task.desc ? `<div class="hw-desc">${task.desc}</div>` : '';
             const mainTitle = task.teacher ? task.teacher : (task.subject || 'Task');
             const subjectBadge = task.teacher && task.subject ? `<span class="hw-subject-badge">${task.subject}</span>` : '';
 
@@ -841,9 +968,7 @@
                 const store = tx.objectStore("homework");
                 store.get(id).onsuccess = (e) => { const task = e.target.result; task.status = newStatus; store.put(task); };
                 tx.oncomplete = () => renderHomework();
-            } catch(err) {
-                console.error(err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         function hardDeleteTask(id) {
@@ -852,9 +977,7 @@
                     const tx = db.transaction("homework", "readwrite");
                     tx.objectStore("homework").delete(id);
                     tx.oncomplete = () => renderHomework();
-                } catch(err) {
-                    console.error(err);
-                }
+                } catch(err) { console.error(err); }
             }
         }
 
@@ -868,9 +991,7 @@
                     document.getElementById('edit-desc').value = task.desc || '';
                     document.getElementById('edit-modal').style.display = 'flex';
                 };
-            } catch(err) {
-                console.error(err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
@@ -887,9 +1008,7 @@
                     store.put(task);
                 };
                 tx.oncomplete = () => { closeEditModal(); renderHomework(); };
-            } catch(err) {
-                console.error(err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         function toggleCompactMode() {
@@ -899,9 +1018,7 @@
                 const isCompact = list.classList.contains('compact-mode');
                 localStorage.setItem('compactMode', isCompact);
                 document.getElementById('compact-toggle').classList.toggle('active-toggle', isCompact);
-            } catch(err) {
-                console.error(err);
-            }
+            } catch(err) { console.error(err); }
         }
 
         if (localStorage.getItem('compactMode') === 'true') {
