@@ -3,11 +3,14 @@ const puppeteer = require('puppeteer-core');
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: "Method Not Allowed" };
   let browser = null;
+  let debugStep = "Initializing Request";
   
   try {
     const { email, password } = JSON.parse(event.body);
     if (!email || !password) return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing email or password" }) };
 
+    debugStep = "Launching Puppeteer";
+    console.log(`[DEBUG] ${debugStep}`);
     const chromium = (await import('@sparticuz/chromium')).default;
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -16,6 +19,8 @@ exports.handler = async (event, context) => {
       headless: chromium.headless,
     });
 
+    debugStep = "Opening New Page & Setting Intercepts";
+    console.log(`[DEBUG] ${debugStep}`);
     const page = await browser.newPage();
     await page.setRequestInterception(true);
     page.on('request', (req) => {
@@ -23,21 +28,37 @@ exports.handler = async (event, context) => {
         else req.continue();
     });
 
+    debugStep = "Navigating to Login Page";
+    console.log(`[DEBUG] ${debugStep}`);
     await page.goto('https://login.arbor.sc/', { waitUntil: 'domcontentloaded' });
+    
+    debugStep = "Typing Credentials";
+    console.log(`[DEBUG] ${debugStep}`);
     await page.type('input[type="text"], input[type="email"], input[name="username"]', email);
     await page.type('input[type="password"]', password);
     
+    debugStep = "Submitting Login & Waiting for Navigation";
+    console.log(`[DEBUG] ${debugStep}`);
     await Promise.all([
         page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
         page.keyboard.press('Enter')
     ]);
 
+    debugStep = "Checking if Login Failed";
+    console.log(`[DEBUG] ${debugStep}`);
     if (page.url().includes('login')) return { statusCode: 401, body: JSON.stringify({ success: false, error: "Invalid email or password." }) };
 
+    debugStep = "Navigating to Calendar View";
+    console.log(`[DEBUG] ${debugStep}`);
     await page.goto('https://carmel-college.uk.arbor.education/?/my-mis-ui/calendar/', { waitUntil: 'domcontentloaded' });
 
-    const scrapeCurrentView = async () => {
-        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 3000 }); } catch (err) { /* Holiday week failsafe */ }
+    const scrapeCurrentView = async (weekLabelName) => {
+        debugStep = `Waiting for Calendar Selectors (${weekLabelName})`;
+        console.log(`[DEBUG] ${debugStep}`);
+        try { await page.waitForSelector('.mis-cal-event-time', { timeout: 3000 }); } catch (err) { console.log(`[DEBUG] No classes found for ${weekLabelName}`); }
+        
+        debugStep = `Evaluating DOM Data (${weekLabelName})`;
+        console.log(`[DEBUG] ${debugStep}`);
         return await page.evaluate(async () => {
             const pageText = document.body.innerText;
             const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
@@ -48,7 +69,7 @@ exports.handler = async (event, context) => {
             const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1);
             
             const schedule = [];
-            const uniqueFetches = {}; // The new cache engine
+            const uniqueFetches = {}; 
 
             dayColumns.forEach((col, index) => {
                 const dayName = dayNames[index] || `Day ${index + 1}`;
@@ -72,7 +93,6 @@ exports.handler = async (event, context) => {
                             seen.add(uniqueId);
                             classes.push({ time: timeString, rawText: rawText, teacher: null, room: null, ajaxLink: ajaxLink });
                             
-                            // Only trigger a fetch if we haven't looked up this subject yet
                             if (ajaxLink && !uniqueFetches[rawText]) {
                                 uniqueFetches[rawText] = fetch(ajaxLink).then(res => res.text()).then(html => {
                                     const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -92,14 +112,11 @@ exports.handler = async (event, context) => {
                 schedule.push({ day: dayName, weekLabel: weekLabel, isHoliday: classes.length === 0, classes: classes });
             });
 
-            // Await all unique network requests concurrently
             const fetchKeys = Object.keys(uniqueFetches);
             const fetchResults = await Promise.all(Object.values(uniqueFetches));
-            
             const cache = {};
             fetchKeys.forEach((key, i) => cache[key] = fetchResults[i]);
 
-            // Paste the cached Teacher/Room data back into the schedule
             schedule.forEach(day => {
                 day.classes.forEach(cls => {
                     if (cache[cls.rawText]) {
@@ -109,24 +126,38 @@ exports.handler = async (event, context) => {
                     delete cls.ajaxLink; 
                 });
             });
-
             return schedule;
         });
     };
 
-    const week1 = await scrapeCurrentView();
+    debugStep = "Executing Scrape Current View (Week 1)";
+    console.log(`[DEBUG] ${debugStep}`);
+    const week1 = await scrapeCurrentView("Week 1");
     
+    debugStep = "Looking for Next Week Button";
+    console.log(`[DEBUG] ${debugStep}`);
     const nextBtn = await page.$('.mis-calendar-navigation-button-next');
     if (nextBtn) {
+        debugStep = "Clicking Next Week Button";
+        console.log(`[DEBUG] ${debugStep}`);
         await nextBtn.click();
-        await new Promise(resolve => setTimeout(resolve, 600)); // Reduced buffer time
-        const week2 = await scrapeCurrentView();
+        
+        debugStep = "Waiting for Calendar to update";
+        console.log(`[DEBUG] ${debugStep}`);
+        await new Promise(resolve => setTimeout(resolve, 800)); 
+        
+        debugStep = "Executing Scrape Current View (Week 2)";
+        console.log(`[DEBUG] ${debugStep}`);
+        const week2 = await scrapeCurrentView("Week 2");
         week1.push(...week2);
     }
 
+    debugStep = "Returning successful payload";
+    console.log(`[DEBUG] ${debugStep}`);
     return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully synced!`, data: week1 }) };
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message || error.toString() }) };
+    console.error(`[CRASH LOG] Failed at step: ${debugStep}. Error: ${error.toString()}`);
+    return { statusCode: 500, body: JSON.stringify({ success: false, step: debugStep, error: error.message || error.toString() }) };
   } finally {
     if (browser !== null) { await browser.close(); }
   }
