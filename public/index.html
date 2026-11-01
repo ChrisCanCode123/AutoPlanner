@@ -814,21 +814,29 @@
             return `${h}:${m}`; 
         };
 
+        // FIXED: Now correctly rolls Sunday to the upcoming Monday
         function getMonday(date) { 
             const d = new Date(date); 
             d.setHours(0,0,0,0); 
             const day = d.getDay(); 
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+            const diff = d.getDate() - day + (day === 0 ? 1 : 1); 
             return new Date(d.setDate(diff)); 
         }
 
+        // FIXED: Daylight Saving Time bug removed by comparing noon to noon
         function getWeekTypeIndex(targetDateStr) { 
             const anchorStr = localStorage.getItem('syncAnchor'); 
             if (!anchorStr) return 0; 
             const anchorMonday = getMonday(anchorStr); 
             const targetMonday = getMonday(targetDateStr); 
+            
+            anchorMonday.setHours(12,0,0,0);
+            targetMonday.setHours(12,0,0,0);
+            
             const diffTime = Math.abs(targetMonday - anchorMonday); 
-            const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)); 
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            const diffWeeks = Math.floor(diffDays / 7); 
+            
             return diffWeeks % 2; 
         }
         
@@ -837,9 +845,11 @@
             const dayName = days[targetDate.getDay()];
             const weekIndex = getWeekTypeIndex(targetDate); 
             let matchedDays = [];
+            
             scheduleArray.forEach((d, idx) => { 
                 if (d.day && d.day.includes(dayName)) matchedDays.push({ obj: d, origIndex: idx }); 
             });
+            
             if (matchedDays.length === 0) return null;
             return matchedDays[weekIndex] || matchedDays[0];
         }
