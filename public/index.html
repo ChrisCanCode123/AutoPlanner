@@ -799,6 +799,20 @@
         const moonIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
         const sunIcon = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
 
+        // === GLOBAL DEBUG COMMANDS ===
+        window.forceUnlock = () => {
+            localStorage.setItem('appUnlocked', 'true');
+            unlockApp();
+            console.log("App Unlocked!");
+        };
+
+        window.debugData = () => {
+            const rawData = localStorage.getItem('schedule') || '[]';
+            console.log("Raw Schedule JSON:", JSON.parse(rawData));
+            prompt("Here is your raw scraped data. Copy this text:", rawData);
+        };
+        // ============================
+
         const parseTime = (timeStr) => { 
             try { 
                 const [h, m] = (timeStr || "0:0").split(':').map(Number); 
@@ -814,16 +828,14 @@
             return `${h}:${m}`; 
         };
 
-        // FIXED: Now correctly rolls Sunday to the upcoming Monday
         function getMonday(date) { 
             const d = new Date(date); 
             d.setHours(0,0,0,0); 
             const day = d.getDay(); 
-            const diff = d.getDate() - day + (day === 0 ? 1 : 1); 
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
             return new Date(d.setDate(diff)); 
         }
 
-        // FIXED: Daylight Saving Time bug removed by comparing noon to noon
         function getWeekTypeIndex(targetDateStr) { 
             const anchorStr = localStorage.getItem('syncAnchor'); 
             if (!anchorStr) return 0; 
@@ -1084,15 +1096,21 @@
             document.getElementById('btn-view-this-week')?.classList.toggle('active-toggle', viewType === 'this-week');
             document.getElementById('btn-view-next-week')?.classList.toggle('active-toggle', viewType === 'next-week');
 
+            // --- BULLETPROOF WEEK LABEL MATH ---
+            // Grab the true base label strictly from the first day in storage
+            const baseLabel = (schedule[0] && schedule[0].weekLabel) ? schedule[0].weekLabel : 'Week A';
+            const alternateLabel = baseLabel.includes('A') ? 'Week B' : 'Week A';
+
             let daysToRender = [];
             if (viewType === 'today') {
                 let targetDate = new Date(); 
                 let dayNum = targetDate.getDay(); 
                 if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
+                
                 const dayData = getDayScheduleAndIndex(targetDate, schedule); 
                 if (dayData) { 
-                    const fallbackWeek = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B'; 
-                    daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: dayData.obj.weekLabel || fallbackWeek }); 
+                    const calculatedWeek = getWeekTypeIndex(targetDate) === 0 ? baseLabel : alternateLabel;
+                    daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: calculatedWeek }); 
                 }
             } else {
                 let targetDate = getMonday(new Date());
@@ -1101,8 +1119,8 @@
                 for (let i = 0; i < 5; i++) { 
                     const dayData = getDayScheduleAndIndex(targetDate, schedule); 
                     if (dayData) { 
-                        const fallbackWeek = getWeekTypeIndex(targetDate) === 0 ? 'Week A' : 'Week B'; 
-                        daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: dayData.obj.weekLabel || fallbackWeek }); 
+                        const calculatedWeek = getWeekTypeIndex(targetDate) === 0 ? baseLabel : alternateLabel;
+                        daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: calculatedWeek }); 
                     } 
                     targetDate.setDate(targetDate.getDate() + 1); 
                 }
