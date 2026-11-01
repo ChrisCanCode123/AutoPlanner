@@ -3,7 +3,6 @@ const puppeteer = require('puppeteer-core');
 exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: "Method Not Allowed" };
   let browser = null;
-  let debugStep = "Initializing Request";
   
   try {
     const { email, password } = JSON.parse(event.body);
@@ -45,7 +44,7 @@ exports.handler = async (event, context) => {
             const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
             const weekLabel = weekMatch ? `Week ${weekMatch[1].toUpperCase()}` : "Week A";
 
-            // CRITICAL FIX: Strictly grab ONLY the first 5 days (Mon-Fri) and ignore hidden DOM garbage
+            // Force strict 5-day Mon-Fri slicing to destroy phantom weekend DOM elements
             const headers = Array.from(document.querySelectorAll('thead .mis-calendar-date')).slice(0, 5);
             const dayNames = headers.map(th => th.innerText.replace(/\n/g, ' ').trim());
             const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1, 6);
@@ -112,29 +111,43 @@ exports.handler = async (event, context) => {
         });
     };
 
-    const week1 = await scrapeCurrentView();
-    
-    const clickedNext = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const nextBtn = buttons.find(b => b.innerText.trim() === '>');
-        if (nextBtn) { nextBtn.click(); return true; }
-        const backupBtn = document.querySelector('.mis-calendar-navigation-button-next');
-        if (backupBtn) { backupBtn.click(); return true; }
-        return false;
-    });
+    const clickNext = async () => {
+        return await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const nextBtn = buttons.find(b => b.innerText.trim() === '>');
+            if (nextBtn) { nextBtn.click(); return true; }
+            const backupBtn = document.querySelector('.mis-calendar-navigation-button-next');
+            if (backupBtn) { backupBtn.click(); return true; }
+            return false;
+        });
+    };
 
+    let week1 = await scrapeCurrentView();
+    
+    // HOLIDAY SKIPPER: If the first scraped week has 0 classes, discard it and move forward
+    const isWeek1Empty = week1.every(day => day.isHoliday);
+    if (isWeek1Empty) {
+        await clickNext();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        week1 = await scrapeCurrentView();
+    }
+
+    const clickedNext = await clickNext();
     if (clickedNext) {
         await new Promise(resolve => setTimeout(resolve, 2000)); 
-        const week2 = await scrapeCurrentView();
+        let week2 = await scrapeCurrentView();
+        
+        // STRICT A/B LABEL FIX: Automatically flip the label from Week 1 to guarantee accuracy
+        const baseLabel = week1[0].weekLabel;
+        const alternateLabel = baseLabel.includes('A') ? 'Week B' : 'Week A';
+        week2.forEach(d => d.weekLabel = alternateLabel);
+        
         week1.push(...week2);
-    } else {
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-        days.forEach(d => week1.push({ day: d, weekLabel: 'Week B', isHoliday: true, classes: [] }));
     }
 
     return { statusCode: 200, body: JSON.stringify({ success: true, message: `Successfully synced!`, data: week1 }) };
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ success: false, step: debugStep, error: error.message || error.toString() }) };
+    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message || error.toString() }) };
   } finally {
     if (browser !== null) { await browser.close(); }
   }
