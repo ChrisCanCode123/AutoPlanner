@@ -44,7 +44,6 @@ exports.handler = async (event, context) => {
             const weekMatch = pageText.match(/\(Week\s*([A-B])\)/i);
             const weekLabel = weekMatch ? `Week ${weekMatch[1].toUpperCase()}` : "Week A";
 
-            // Force strict 5-day Mon-Fri slicing to destroy phantom weekend DOM elements
             const headers = Array.from(document.querySelectorAll('thead .mis-calendar-date')).slice(0, 5);
             const dayNames = headers.map(th => th.innerText.replace(/\n/g, ' ').trim());
             const dayColumns = Array.from(document.querySelectorAll('tbody tr:first-child > td')).slice(1, 6);
@@ -74,8 +73,9 @@ exports.handler = async (event, context) => {
                             seen.add(uniqueId);
                             classes.push({ time: timeString, rawText: rawText, teacher: null, room: null, ajaxLink: ajaxLink });
                             
-                            if (ajaxLink && !uniqueFetches[rawText]) {
-                                uniqueFetches[rawText] = fetch(ajaxLink).then(res => res.text()).then(html => {
+                            // CRITICAL FIX: Cache by the unique ajaxLink instead of the subject name to support split teachers
+                            if (ajaxLink && !uniqueFetches[ajaxLink]) {
+                                uniqueFetches[ajaxLink] = fetch(ajaxLink).then(res => res.text()).then(html => {
                                     const doc = new DOMParser().parseFromString(html, 'text/html');
                                     const listItems = Array.from(doc.querySelectorAll('li'));
                                     const staffLi = listItems.find(li => li.querySelector('b') && li.querySelector('b').innerText.includes('Staff'));
@@ -100,9 +100,9 @@ exports.handler = async (event, context) => {
 
             schedule.forEach(day => {
                 day.classes.forEach(cls => {
-                    if (cache[cls.rawText]) {
-                        cls.teacher = cache[cls.rawText].teacher;
-                        cls.room = cache[cls.rawText].room;
+                    if (cls.ajaxLink && cache[cls.ajaxLink]) {
+                        cls.teacher = cache[cls.ajaxLink].teacher;
+                        cls.room = cache[cls.ajaxLink].room;
                     }
                     delete cls.ajaxLink; 
                 });
@@ -112,7 +112,12 @@ exports.handler = async (event, context) => {
     };
 
     const clickNext = async () => {
-        return await page.evaluate(() => {
+        const oldFirstDate = await page.evaluate(() => {
+            const el = document.querySelector('thead .mis-calendar-date');
+            return el ? el.innerText.trim() : '';
+        });
+
+        const clicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
             const nextBtn = buttons.find(b => b.innerText.trim() === '>');
             if (nextBtn) { nextBtn.click(); return true; }
@@ -120,24 +125,30 @@ exports.handler = async (event, context) => {
             if (backupBtn) { backupBtn.click(); return true; }
             return false;
         });
+
+        if (clicked && oldFirstDate) {
+            await page.waitForFunction((oldText) => {
+                const el = document.querySelector('thead .mis-calendar-date');
+                return el && el.innerText.trim() !== oldText;
+            }, { timeout: 8000 }, oldFirstDate).catch(() => {});
+            
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return clicked;
     };
 
     let week1 = await scrapeCurrentView();
     
-    // HOLIDAY SKIPPER: If the first scraped week has 0 classes, discard it and move forward
     const isWeek1Empty = week1.every(day => day.isHoliday);
     if (isWeek1Empty) {
         await clickNext();
-        await new Promise(resolve => setTimeout(resolve, 2000));
         week1 = await scrapeCurrentView();
     }
 
     const clickedNext = await clickNext();
     if (clickedNext) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); 
         let week2 = await scrapeCurrentView();
         
-        // STRICT A/B LABEL FIX: Automatically flip the label from Week 1 to guarantee accuracy
         const baseLabel = week1[0].weekLabel;
         const alternateLabel = baseLabel.includes('A') ? 'Week B' : 'Week A';
         week2.forEach(d => d.weekLabel = alternateLabel);
