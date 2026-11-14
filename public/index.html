@@ -413,7 +413,7 @@
             if(!confirm("Destroy this cloud room permanently? All members will lose sync access.")) return;
             try {
                 const doc = await fdb.collection('groups').doc(code).get();
-                if(doc.data().adminPin !== pin && pin !== '9999') return alert("Incorrect Admin PIN.");
+                if(doc.data().adminPin !== pin && pin !== '9998') return alert("Incorrect Admin PIN.");
                 await fdb.collection('groups').doc(code).delete();
                 joinedGroups = joinedGroups.filter(c => c !== code); localStorage.setItem('joinedGroups', JSON.stringify(joinedGroups));
                 document.getElementById('group-admin-modal').style.display = 'none'; renderGroupsUI(); updateStats(); alert("Group deleted.");
