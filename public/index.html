@@ -67,6 +67,7 @@
     <div id="countdown-pill"><span id="cd-subject" style="opacity: 0.9; margin-right: 4px;"></span><span id="cd-time" style="font-variant-numeric: tabular-nums;"></span></div>
     <div id="lightbox-overlay"><button class="lightbox-close" onclick="closeLightbox()">✕</button><img id="lightbox-img" src=""></div>
 
+    <!-- MODALS -->
     <div id="holiday-modal" class="modal-overlay">
         <div class="modal-content">
             <h2 style="margin-bottom: 8px; font-size: 20px;">Holiday Settings</h2><p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; font-weight: 500;">Select upcoming weeks to mark as holidays. This pushes back your due dates and perfectly pauses A/B week rotation.</p>
@@ -219,13 +220,7 @@
             </div>
 
             <div id="tab-timetable" class="tab-content">
-                <div class="stat-grid">
-                    <div class="stat-box"><div class="stat-num" id="stat-done">0</div><div class="stat-label">Tasks Done</div></div>
-                    <div class="stat-box"><div class="stat-num" id="stat-pend">0</div><div class="stat-label">Pending</div></div>
-                    <div class="stat-box"><div class="stat-num" id="stat-grp">0</div><div class="stat-label">Groups</div></div>
-                </div>
-
-                <div id="form-section" class="box">
+                <div id="form-section" class="box" style="display: none;">
                     <h2 style="margin-bottom: 20px; font-size: 18px; font-weight: 800;">Sync Schedule</h2>
                     <form id="loginForm">
                         <input type="email" id="email" placeholder="Arbor Email" required><input type="password" id="password" placeholder="Arbor Password" required>
@@ -241,7 +236,18 @@
                     <button class="toggle-btn" style="display: flex; align-items: center; justify-content: center; gap: 4px; padding: 10px 4px;" onclick="showSyncForm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Sync</button>
                 </div>
                 <div id="timetable-hint" style="display:none; text-align:center; font-size:12px; color:var(--text-muted); margin-bottom:15px; font-weight:600;">Tap any lesson to manually edit it.</div>
+                
                 <div id="timetable-list"></div>
+
+                <!-- Stats Grid Moved to Bottom -->
+                <div id="stats-section" style="margin-top: 30px; margin-bottom: 20px;">
+                    <h2 class="history-header" style="margin-top: 0;">Overview Stats</h2>
+                    <div class="stat-grid">
+                        <div class="stat-box"><div class="stat-num" id="stat-done">0</div><div class="stat-label">Tasks Done</div></div>
+                        <div class="stat-box"><div class="stat-num" id="stat-pend">0</div><div class="stat-label">Pending</div></div>
+                        <div class="stat-box"><div class="stat-num" id="stat-grp">0</div><div class="stat-label">Groups</div></div>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -396,7 +402,7 @@
         };
 
         window.renameGroup = async () => {
-            const code = document.getElementById('admin-group-code').value; const name = document.getElementById('admin-group-name').value.trim(); const pin = document.getElementById('admin-group-pin').value;
+            const code = document.getElementById('admin-group-code').value; const name = document.getElementById('admin-group-name').value.trim(); const pin = document.getElementById('admin-group-pin').value.trim();
             if(!name || !pin) return alert("Name and PIN required.");
             try {
                 const doc = await fdb.collection('groups').doc(code).get();
@@ -408,7 +414,7 @@
         };
 
         window.deleteGroup = async () => {
-            const code = document.getElementById('admin-group-code').value; const pin = document.getElementById('admin-group-pin').value;
+            const code = document.getElementById('admin-group-code').value; const pin = document.getElementById('admin-group-pin').value.trim();
             if(!pin) return alert("Admin PIN required.");
             if(!confirm("Destroy this cloud room permanently? All members will lose sync access.")) return;
             try {
@@ -526,6 +532,103 @@
             if(uniqueGroups.length > 0) { html += '<optgroup label="Cloud Rooms">'; uniqueGroups.forEach(g => html += `<option value="group:${g.id}">${g.name}</option>`); html += '</optgroup>'; }
             filterSelect.innerHTML = html; if(filterSelect.querySelector(`option[value="${currentVal}"]`)) filterSelect.value = currentVal;
         }
+
+        window.renderTimetable = (viewType = 'today') => {
+            const schedule = JSON.parse(localStorage.getItem('schedule') || '[]'); const list = document.getElementById('timetable-list'); list.innerHTML = '';
+            
+            if (schedule.length === 0) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; document.getElementById('timetable-hint').style.display = 'none'; return; }
+            document.getElementById('form-section').style.display = 'none'; document.getElementById('timetable-controls').style.display = 'flex'; document.getElementById('timetable-hint').style.display = 'block';
+            
+            document.getElementById('btn-view-today')?.classList.toggle('active-toggle', viewType === 'today'); 
+            document.getElementById('btn-view-this-week')?.classList.toggle('active-toggle', viewType === 'this-week');
+            document.getElementById('btn-view-next-week')?.classList.toggle('active-toggle', viewType === 'next-week');
+
+            const baseLabel = (schedule[0] && schedule[0].weekLabel) ? schedule[0].weekLabel : 'Week A';
+            const alternateLabel = baseLabel.includes('A') ? 'Week B' : 'Week A';
+            const holidayWeeks = JSON.parse(localStorage.getItem('holidayWeeks') || '[]');
+
+            let daysToRender = [];
+            if (viewType === 'today') {
+                let targetDate = new Date(); let dayNum = targetDate.getDay(); if (dayNum === 0 || dayNum === 6) targetDate.setDate(targetDate.getDate() + (dayNum === 0 ? 1 : 2)); 
+                const dayData = getDayScheduleAndIndex(targetDate, schedule); 
+                if (dayData) { 
+                    const calculatedWeek = getWeekTypeIndex(targetDate) === 0 ? baseLabel : alternateLabel;
+                    const isUserHoliday = holidayWeeks.includes(getMonday(targetDate).toISOString().split('T')[0]);
+                    daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: calculatedWeek, userMarkedHoliday: isUserHoliday }); 
+                }
+            } else {
+                let targetDate = new Date();
+                if (targetDate.getDay() === 0 || targetDate.getDay() === 6) targetDate.setDate(targetDate.getDate() + (targetDate.getDay() === 0 ? 1 : 2));
+                targetDate = getMonday(targetDate);
+                if (viewType === 'next-week') targetDate.setDate(targetDate.getDate() + 7);
+
+                for (let i = 0; i < 5; i++) { 
+                    const dayData = getDayScheduleAndIndex(targetDate, schedule); 
+                    if (dayData) { 
+                        const calculatedWeek = getWeekTypeIndex(targetDate) === 0 ? baseLabel : alternateLabel;
+                        const isUserHoliday = holidayWeeks.includes(getMonday(targetDate).toISOString().split('T')[0]);
+                        daysToRender.push({ ...dayData.obj, globalIndex: dayData.origIndex, weekLabel: calculatedWeek, userMarkedHoliday: isUserHoliday }); 
+                    } 
+                    targetDate.setDate(targetDate.getDate() + 1); 
+                }
+            }
+
+            if (daysToRender.length === 0) { list.innerHTML = '<div class="box" style="text-align: center; color: var(--text-muted); font-size: 15px;">No classes found.</div>'; return; }
+
+            daysToRender.forEach(daySchedule => {
+                const cleanDayName = (daySchedule.day || '').replace(/^\d+\s+/, ''); 
+                const dayHeader = document.createElement('div'); dayHeader.className = 'day-header'; 
+                dayHeader.innerHTML = `${cleanDayName} <span style="color: var(--primary); font-size: 13px; font-weight: 800; background: rgba(79, 70, 229, 0.1); padding: 2px 8px; border-radius: 12px; margin-left: 6px;">${daySchedule.weekLabel}</span>`; 
+                list.appendChild(dayHeader);
+                
+                if (daySchedule.isHoliday || daySchedule.userMarkedHoliday || !daySchedule.classes || daySchedule.classes.length === 0) { 
+                    const banner = document.createElement('div'); banner.className = 'holiday-banner'; banner.innerText = '🌴 Holiday / No Classes Scheduled'; list.appendChild(banner); return; 
+                }
+                
+                const dayTimeline = document.createElement('div'); dayTimeline.className = 'timetable'; let currentMins = 550; 
+                
+                daySchedule.classes.forEach((cls, classIdx) => {
+                    const times = (cls.time || "").split('-'); if (times.length !== 2) return; 
+                    const startMins = parseTime(times[0]); const endMins = parseTime(times[1]);
+                    
+                    if (startMins - currentMins >= 45) { 
+                        const isLunch = (currentMins >= 740 && startMins <= 815); 
+                        if (!isLunch) { 
+                            const freeSlot = document.createElement('div'); freeSlot.className = 'class-slot free-period'; 
+                            freeSlot.innerHTML = `<div class="time-col"><div class="time-start">${formatTime(currentMins)}</div><div class="time-end">${times[0]}</div></div><div class="info-col"><div class="subject">Free Period</div></div>`; dayTimeline.appendChild(freeSlot); 
+                        } 
+                    }
+                    
+                    const slot = document.createElement('div'); slot.className = `class-slot`; slot.setAttribute('onclick', `openLessonEditor(${daySchedule.globalIndex}, ${classIdx})`); 
+                    let metaHTML = ''; let metaParts = []; if (cls.teacher) metaParts.push(cls.teacher); if (cls.room) metaParts.push(cls.room); 
+                    if (metaParts.length > 0) metaHTML = `<div class="class-meta">${metaParts.join(' • ')}</div>`; 
+                    
+                    slot.innerHTML = `<div class="time-col"><div class="time-start">${(times[0] || "").trim()}</div><div class="time-end">${(times[1] || "").trim()}</div></div><div class="info-col"><div class="subject">${cls.rawText}</div>${metaHTML}</div>`; 
+                    dayTimeline.appendChild(slot); currentMins = endMins;
+                });
+                
+                if (924 - currentMins >= 45) { 
+                    const freeSlot = document.createElement('div'); freeSlot.className = 'class-slot free-period'; 
+                    freeSlot.innerHTML = `<div class="time-col"><div class="time-start">${formatTime(currentMins)}</div><div class="time-end">15:24</div></div><div class="info-col"><div class="subject">Free Period</div></div>`; dayTimeline.appendChild(freeSlot); 
+                }
+                list.appendChild(dayTimeline);
+            });
+        };
+
+        window.showSyncForm = () => { if (confirm("Download latest timetable? Manual edits will be lost.")) { document.getElementById('form-section').style.display = 'block'; document.getElementById('timetable-controls').style.display = 'none'; document.getElementById('timetable-hint').style.display = 'none'; document.getElementById('timetable-list').innerHTML = ''; } };
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); document.getElementById('form-section').style.display = 'none'; document.getElementById('loading').style.display = 'block';
+            try {
+                const response = await fetch('/.netlify/functions/scrape', { method: 'POST', body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value }) });
+                const data = await response.json(); document.getElementById('loading').style.display = 'none';
+                if (data.success) {
+                    let fetchedData = data.data; if (!fetchedData || fetchedData.length === 0) fetchedData = generateBlankSchedule();
+                    localStorage.setItem('schedule', JSON.stringify(fetchedData)); localStorage.setItem('syncAnchor', new Date().toISOString()); 
+                    renderTimetable('today'); startCountdown();
+                } else { alert("Error: " + (data.error || "Unable to sync schedule.")); document.getElementById('form-section').style.display = 'block'; }
+            } catch (error) { alert("Connection failed. Please try again."); document.getElementById('loading').style.display = 'none'; document.getElementById('form-section').style.display = 'block'; }
+        });
 
         window.renderHomework = () => {
             if (!db) return; const list = document.getElementById('homework-list'); const hList = document.getElementById('history-list'); const hSec = document.getElementById('history-section'); 
