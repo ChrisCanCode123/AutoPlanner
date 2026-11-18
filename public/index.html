@@ -35,12 +35,6 @@
             <p id="auth-error" style="color: var(--danger); margin-bottom: 12px; font-size: 14px; font-weight: 600; display: none;">Incorrect PIN</p>
             <button class="btn" onclick="checkAppPin()">Unlock</button>
         </div>
-
-        <div id="auth-prompt-pc" class="box" style="display: none; width: 100%; max-width: 320px;">
-            <h2 style="margin-bottom: 8px; font-size: 22px;">Link Device</h2><p style="color: var(--text-muted); margin-bottom: 20px; font-size: 15px;">Tap the laptop icon on your phone to generate a pairing code.</p>
-            <input type="text" id="pc-pin-input" placeholder="6-Digit Code" maxlength="6" style="text-align: center; letter-spacing: 4px; font-size: 20px; font-weight: bold; text-transform: uppercase;">
-            <button class="btn" onclick="linkPC()">Sync Data</button>
-        </div>
     </div>
 
     <div id="countdown-pill"><span id="cd-subject" style="opacity: 0.9; margin-right: 4px;"></span><span id="cd-time" style="font-variant-numeric: tabular-nums;"></span></div>
@@ -81,7 +75,6 @@
         <header>
             <span id="app-header-title">Tasks</span>
             <div class="header-actions">
-                <button onclick="generatePCLink()" title="Link PC"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></button>
                 <button onclick="openHolidayModal()" title="Holiday Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg></button>
                 <button onclick="clearAllData()" title="Clear Data"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button>
                 <button onclick="cycleTheme()" title="Change Color"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"></circle><path d="M13.5 9a4.5 4.5 0 1 1-4.5 4.5"></path><path d="M13.5 13.5v6"></path><path d="M9 13.5H3"></path></svg></button>
@@ -176,44 +169,20 @@
         window.cycleTheme = () => { currentThemeIdx = (currentThemeIdx + 1) % themes.length; localStorage.setItem('colorThemeIdx', currentThemeIdx); applyColorTheme(); };
         function updateThemeIcon() { document.getElementById('theme-toggle').innerHTML = document.body.classList.contains('dark-mode') ? sunIcon : moonIcon; } if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(); } document.getElementById('theme-toggle').addEventListener('click', () => { document.body.classList.toggle('dark-mode'); localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); updateThemeIcon(); });
 
-        window.generatePCLink = () => {
-            if(!db) return; document.getElementById('auth-message').innerText = "Generating Code... (This may take a moment)";
-            db.transaction("homework", "readonly").objectStore("homework").getAll().onsuccess = async e => {
-                try {
-                    const tasks = e.target.result || []; const code = Math.random().toString(36).substring(2,8).toUpperCase();
-                    await fdb.collection('pc_links').doc(code).set({ local: JSON.stringify({...localStorage}), time: Date.now() });
-                    const chunks = []; for(let i=0; i<tasks.length; i+=400) chunks.push(tasks.slice(i, i+400));
-                    for(let c of chunks) { const b = fdb.batch(); c.forEach(t => b.set(fdb.collection('pc_links').doc(code).collection('tasks').doc(t.id), t)); await b.commit(); }
-                    document.getElementById('auth-message').innerText = "Verifying Access...";
-                    alert("PC Pairing Code: " + code + "\n\nGo to this website on your PC and enter this code to instantly clone your app.");
-                } catch(err) { alert("Error generating code. Please try again."); document.getElementById('auth-message').innerText = "Verifying Access..."; }
-            };
-        };
-
-        window.linkPC = async () => {
-            const code = document.getElementById('pc-pin-input').value.trim().toUpperCase(); document.getElementById('auth-message').innerText = "Syncing... Please wait";
-            try {
-                const doc = await fdb.collection('pc_links').doc(code).get();
-                if(doc.exists) {
-                    const lData = JSON.parse(doc.data().local || '{}'); for(let k in lData) localStorage.setItem(k, lData[k]);
-                    const tSnap = await fdb.collection('pc_links').doc(code).collection('tasks').get();
-                    const tx = db.transaction("homework", "readwrite"); tx.objectStore("homework").clear();
-                    tSnap.forEach(t => tx.objectStore("homework").put(t.data()));
-                    tx.oncomplete = async () => {
-                        localStorage.setItem('appUnlocked', 'true');
-                        const b = fdb.batch(); tSnap.forEach(t => b.delete(t.ref)); b.delete(doc.ref); await b.commit().catch(()=>{});
-                        location.reload();
-                    };
-                } else { document.getElementById('auth-message').innerText = "Invalid Code"; setTimeout(()=>document.getElementById('auth-message').innerText="Verifying Access...", 2000); }
-            } catch(e) { document.getElementById('auth-message').innerText = "Sync Failed"; setTimeout(()=>document.getElementById('auth-message').innerText="Verifying Access...", 2000); }
-        };
-
         function unlockApp() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; startCountdown(); initGroups(); updateStats(); }
         function checkAccess() {
-            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone; const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (localStorage.getItem('appUnlocked') === 'true') { unlockApp(); } 
-            else if (isStandalone || isMobile) { document.getElementById('auth-prompt-mobile').style.display = 'block'; } 
-            else { document.getElementById('auth-prompt-pc').style.display = 'block'; }
+            if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+                if (localStorage.getItem('appUnlocked') === 'true') unlockApp();
+                else { document.getElementById('auth-message').style.display = 'none'; document.getElementById('auth-prompt-mobile').style.display = 'block'; }
+            } else {
+                if (new URLSearchParams(window.location.search).get('pin') === '5566') {
+                    document.getElementById('auth-message').innerHTML = "To use AutoPlanner, please add this page to your Home Screen.<br><br><span style='font-size:14px; font-weight:normal; color: var(--text-muted); margin-top: 10px; display:block;'>iOS: Tap Share ➔ Add to Home Screen<br>Android: Tap Menu ➔ Install App</span>";
+                    document.getElementById('auth-message').style.color = "var(--text-main)";
+                } else {
+                    document.getElementById('auth-message').innerText = "Access Denied.";
+                    document.getElementById('auth-message').style.color = "var(--danger)";
+                }
+            }
         }
         window.checkAppPin = () => { if (document.getElementById('app-pin-input').value.trim() === '7788') { localStorage.setItem('appUnlocked', 'true'); unlockApp(); } else document.getElementById('auth-error').style.display = 'block'; };
         
