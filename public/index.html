@@ -163,22 +163,35 @@
         function updateThemeIcon() { document.getElementById('theme-toggle').innerHTML = document.body.classList.contains('dark-mode') ? sunIcon : moonIcon; } if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(); } document.getElementById('theme-toggle').addEventListener('click', () => { document.body.classList.toggle('dark-mode'); localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); updateThemeIcon(); });
 
         window.generatePCLink = () => {
-            if(!db) return; db.transaction("homework", "readonly").objectStore("homework").getAll().onsuccess = e => {
-                const payload = JSON.stringify({ local: { ...localStorage }, tasks: e.target.result }); const code = Math.random().toString(36).substring(2,8).toUpperCase();
-                fdb.collection('pc_links').doc(code).set({ data: payload, time: Date.now() }).then(() => { alert("PC Pairing Code: " + code + "\n\nGo to this website on your PC and enter this code to instantly clone your app."); }).catch(err => alert("Error generating code."));
+            if(!db) return; document.getElementById('auth-message').innerText = "Generating Code... (This may take a moment)";
+            db.transaction("homework", "readonly").objectStore("homework").getAll().onsuccess = async e => {
+                try {
+                    const tasks = e.target.result || []; const code = Math.random().toString(36).substring(2,8).toUpperCase();
+                    await fdb.collection('pc_links').doc(code).set({ local: JSON.stringify({...localStorage}), time: Date.now() });
+                    const chunks = []; for(let i=0; i<tasks.length; i+=400) chunks.push(tasks.slice(i, i+400));
+                    for(let c of chunks) { const b = fdb.batch(); c.forEach(t => b.set(fdb.collection('pc_links').doc(code).collection('tasks').doc(t.id), t)); await b.commit(); }
+                    document.getElementById('auth-message').innerText = "Verifying Access...";
+                    alert("PC Pairing Code: " + code + "\n\nGo to this website on your PC and enter this code to instantly clone your app.");
+                } catch(err) { alert("Error generating code. Please try again."); document.getElementById('auth-message').innerText = "Verifying Access..."; }
             };
         };
 
-        window.linkPC = () => {
-            const code = document.getElementById('pc-pin-input').value.trim().toUpperCase(); document.getElementById('auth-message').innerText = "Syncing...";
-            fdb.collection('pc_links').doc(code).get().then(doc => {
+        window.linkPC = async () => {
+            const code = document.getElementById('pc-pin-input').value.trim().toUpperCase(); document.getElementById('auth-message').innerText = "Syncing... Please wait";
+            try {
+                const doc = await fdb.collection('pc_links').doc(code).get();
                 if(doc.exists) {
-                    const data = JSON.parse(doc.data().data); for(let k in data.local) localStorage.setItem(k, data.local[k]);
+                    const lData = JSON.parse(doc.data().local || '{}'); for(let k in lData) localStorage.setItem(k, lData[k]);
+                    const tSnap = await fdb.collection('pc_links').doc(code).collection('tasks').get();
                     const tx = db.transaction("homework", "readwrite"); tx.objectStore("homework").clear();
-                    data.tasks.forEach(t => tx.objectStore("homework").put(t));
-                    tx.oncomplete = () => { localStorage.setItem('appUnlocked', 'true'); fdb.collection('pc_links').doc(code).delete(); location.reload(); };
+                    tSnap.forEach(t => tx.objectStore("homework").put(t.data()));
+                    tx.oncomplete = async () => {
+                        localStorage.setItem('appUnlocked', 'true');
+                        const b = fdb.batch(); tSnap.forEach(t => b.delete(t.ref)); b.delete(doc.ref); await b.commit().catch(()=>{});
+                        location.reload();
+                    };
                 } else { document.getElementById('auth-message').innerText = "Invalid Code"; setTimeout(()=>document.getElementById('auth-message').innerText="Verifying Access...", 2000); }
-            });
+            } catch(e) { document.getElementById('auth-message').innerText = "Sync Failed"; setTimeout(()=>document.getElementById('auth-message').innerText="Verifying Access...", 2000); }
         };
 
         function unlockApp() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; startCountdown(); initGroups(); updateStats(); }
@@ -403,14 +416,17 @@
             else { btns = `<button class="action-icon-btn btn-complete" onclick="updateTaskStatus('${t.id}', 'completed')" title="Complete"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button><button class="action-icon-btn btn-edit" onclick="openEditModal('${t.id}')" title="Edit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button><button class="action-icon-btn btn-hard-delete" onclick="hardDeleteTask('${t.id}')" title="Delete"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`; }
             let imgHTML = ''; const imgs = t.images && t.images.length > 0 ? t.images : (t.image ? [t.image] : []);
             if (imgs.length > 0) { imgHTML = `<div class="hw-image-carousel">`; imgs.forEach(src => imgHTML += `<img src="${src}" class="hw-img" onclick="openLightbox(this.src)">`); imgHTML += `</div>`; }
-            c.innerHTML = `<div class="hw-header"><div class="hw-title-group"><span class="hw-teacher">${t.teacher||t.subject||'Task'}</span><div>${t.teacher&&t.subject?`<span class="hw-subject-badge">${t.subject}</span>`:''}${t.fromGroup?`<span class="group-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> ${t.groupName||'Group'}</span>`:''}</div></div><span class="hw-due">${t.due||'No Due Date'}</span></div>${t.desc?`<div class="hw-desc">${t.desc}</div>`:''}${imgHTML}<div class="hw-actions">${btns}</div>`; return c;
+            c.innerHTML = `<div class="hw-header"><div class="hw-title-group"><span class="hw-teacher">${t.teacher||t.subject||'Task'}</span><div>${t.teacher&&t.subject?`<span class="hw-subject-badge">${t.subject}</span>`:''}${t.fromGroup?`<span class="group-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> ${t.groupName||'Group'}</span>`:''}</div></div><span class="hw-due">${t.due||'No Due Date'}</span></div>${t.desc?`<div class="hw-desc">${t.desc}</div>`:''}${imgHTML}<div class="hw-actions">${btns}</div>`; 
+            return c;
         }
 
         window.updateTaskStatus = (id, s) => { try { const tx = db.transaction("homework", "readwrite"); const store = tx.objectStore("homework"); store.get(id).onsuccess = e => { const t = e.target.result; t.status = s; store.put(t); }; tx.oncomplete = () => { renderHomework(); updateStats(); }; } catch(err) {} };
         window.hardDeleteTask = (id) => { if (confirm("Permanently delete this?")) { try { db.transaction("homework", "readwrite").objectStore("homework").delete(id).onsuccess = () => { renderHomework(); updateStats(); }; } catch(err) {} } };
+        
         window.openEditModal = id => { try { db.transaction("homework", "readonly").objectStore("homework").get(id).onsuccess = e => { const t = e.target.result; document.getElementById('edit-id').value = t.id; const parsed = parseDueDate(t.due); if(parsed !== Number.MAX_SAFE_INTEGER) { const d = new Date(parsed); document.getElementById('edit-due').value = d.toISOString().split('T')[0]; } document.getElementById('edit-desc').value = t.desc||''; document.getElementById('edit-modal').style.display = 'flex'; }; } catch(err) {} };
         window.closeEditModal = () => document.getElementById('edit-modal').style.display = 'none';
         window.saveEdit = () => { try { const id = document.getElementById('edit-id').value; const tx = db.transaction("homework", "readwrite"); const store = tx.objectStore("homework"); store.get(id).onsuccess = e => { const t = e.target.result; const dval = document.getElementById('edit-due').value; if(dval) { const d = new Date(dval); const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; t.due = `Due: ${days[d.getDay()]}, ${d.getDate()}/${d.getMonth()+1}`; } t.desc = document.getElementById('edit-desc').value; store.put(t); }; tx.oncomplete = () => { closeEditModal(); renderHomework(); }; } catch(err) {} };
+        
         window.toggleCompactMode = () => { try { const lst = document.getElementById('homework-list'); lst.classList.toggle('compact-mode'); const isC = lst.classList.contains('compact-mode'); localStorage.setItem('compactMode', isC); document.getElementById('compact-toggle').classList.toggle('active-toggle', isC); } catch(err) {} };
         if (localStorage.getItem('compactMode') === 'true') { document.getElementById('homework-list').classList.add('compact-mode'); setTimeout(() => document.getElementById('compact-toggle').classList.add('active-toggle'), 50); }
         if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(err => console.log(err))); }
